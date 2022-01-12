@@ -1,0 +1,19 @@
+snapshots:
+  - clusterName: testy
+    talosInfo:
+      secret: "xxx"
+      ## TODO: above needs to be an object ref to the talosconfig secret. currently just a b64 string
+    s3Info:
+      bucket: "one-testy-boi"
+      region: "us-east-1"
+    schedule: "*/2 * * * *"
+    ## ^ a comically short every 2 mins.
+  - clusterName: testy2
+    talosInfo:
+      secret: "xxx"
+      ## TODO: above needs to be an object ref to the talosconfig secret. currently just a b64 string
+    s3Info:
+      bucket: "two-testy-boi"
+      region: "us-east-1"
+    schedule: "0 * * * *"
+    ## ^ every hour on the hour
