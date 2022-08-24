@@ -1,5 +1,5 @@
 // Package config provides functions for parsing the
-// backer-upper configs
+// backup configs
 package config
 
 import (
@@ -34,7 +34,7 @@ type S3Info struct {
 	Region string `yaml:"region"`
 }
 
-// ParseConfig will ingest a backer-upper config at the given path.
+// ParseConfig will ingest a backup config at the given path.
 func ParseConfig(ctx context.Context, path string) (*SnapshotList, error) {
 	sl := &SnapshotList{}
 

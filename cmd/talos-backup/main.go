@@ -1,3 +1,4 @@
+// Package main provides the command line interface for the talos-backup tool.
 package main
 
 import (
@@ -9,9 +10,9 @@ import (
 
 	"github.com/adhocore/gronx"
 
-	"github.com/rsmitty/talos-backer-upper/pkg/config"
-	"github.com/rsmitty/talos-backer-upper/pkg/s3"
-	"github.com/rsmitty/talos-backer-upper/pkg/talos"
+	"github.com/siderolabs/talos-backup/pkg/config"
+	"github.com/siderolabs/talos-backup/pkg/s3"
+	"github.com/siderolabs/talos-backup/pkg/talos"
 )
 
 func main() {

@@ -2,11 +2,11 @@
 
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-01-13T13:19:54Z by kres latest.
+# Generated on 2022-08-24T20:09:47Z by kres latest.
 
 set -e
 
-RELEASE_TOOL_IMAGE="ghcr.io/talos-systems/release-tool:latest"
+RELEASE_TOOL_IMAGE="ghcr.io/siderolabs/release-tool:latest"
 
 function release-tool {
   docker pull "${RELEASE_TOOL_IMAGE}" >/dev/null

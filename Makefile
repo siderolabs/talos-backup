@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-01-13T16:08:44Z by kres latest.
+# Generated on 2022-08-24T20:10:08Z by kres latest.
 
 # common variables
 
@@ -9,16 +9,20 @@ TAG := $(shell git describe --tag --always --dirty)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 ARTIFACTS := _out
 REGISTRY ?= ghcr.io
-USERNAME ?= talos-systems
+USERNAME ?= siderolabs
 REGISTRY_AND_USERNAME ?= $(REGISTRY)/$(USERNAME)
-GOFUMPT_VERSION ?= abc0db2c416aca0f60ea33c23c76665f6e7ba0b6
-GO_VERSION ?= 1.17
-PROTOBUF_GO_VERSION ?= 1.27.1
-GRPC_GO_VERSION ?= 1.1.0
-GRPC_GATEWAY_VERSION ?= 2.4.0
-VTPROTOBUF_VERSION ?= 81d623a9a700ede8ef765e5ab08b3aa1f5b4d5a8
+GOLANGCILINT_VERSION ?= v1.49.0
+GOFUMPT_VERSION ?= v0.3.1
+GO_VERSION ?= 1.19
+GOIMPORTS_VERSION ?= v0.1.12
+PROTOBUF_GO_VERSION ?= 1.28.1
+GRPC_GO_VERSION ?= 1.2.0
+GRPC_GATEWAY_VERSION ?= 2.11.1
+VTPROTOBUF_VERSION ?= 0.3.0
+DEEPCOPY_VERSION ?= v0.5.5
 TESTPKGS ?= ./...
-KRES_IMAGE ?= ghcr.io/talos-systems/kres:latest
+KRES_IMAGE ?= ghcr.io/siderolabs/kres:latest
+CONFORMANCE_IMAGE ?= ghcr.io/siderolabs/conform:latest
 
 # docker build settings
 
@@ -36,13 +40,16 @@ COMMON_ARGS += --build-arg=SHA=$(SHA)
 COMMON_ARGS += --build-arg=TAG=$(TAG)
 COMMON_ARGS += --build-arg=USERNAME=$(USERNAME)
 COMMON_ARGS += --build-arg=TOOLCHAIN=$(TOOLCHAIN)
+COMMON_ARGS += --build-arg=GOLANGCILINT_VERSION=$(GOLANGCILINT_VERSION)
 COMMON_ARGS += --build-arg=GOFUMPT_VERSION=$(GOFUMPT_VERSION)
+COMMON_ARGS += --build-arg=GOIMPORTS_VERSION=$(GOIMPORTS_VERSION)
 COMMON_ARGS += --build-arg=PROTOBUF_GO_VERSION=$(PROTOBUF_GO_VERSION)
 COMMON_ARGS += --build-arg=GRPC_GO_VERSION=$(GRPC_GO_VERSION)
 COMMON_ARGS += --build-arg=GRPC_GATEWAY_VERSION=$(GRPC_GATEWAY_VERSION)
 COMMON_ARGS += --build-arg=VTPROTOBUF_VERSION=$(VTPROTOBUF_VERSION)
+COMMON_ARGS += --build-arg=DEEPCOPY_VERSION=$(DEEPCOPY_VERSION)
 COMMON_ARGS += --build-arg=TESTPKGS=$(TESTPKGS)
-TOOLCHAIN ?= docker.io/golang:1.17-alpine
+TOOLCHAIN ?= docker.io/golang:1.19-alpine
 
 # help menu
 
@@ -77,7 +84,7 @@ respectively.
 
 endef
 
-all: unit-tests talos-backer-upper image-talos-backer-upper lint
+all: unit-tests talos-backup image-talos-backup lint
 
 .PHONY: clean
 clean:  ## Cleans up all artifacts.
@@ -99,8 +106,11 @@ lint-gofumpt:  ## Runs gofumpt linter.
 fmt:  ## Formats the source code
 	@docker run --rm -it -v $(PWD):/src -w /src golang:$(GO_VERSION) \
 		bash -c "export GO111MODULE=on; export GOPROXY=https://proxy.golang.org; \
-		go install mvdan.cc/gofumpt/gofumports@$(GOFUMPT_VERSION) && \
-		gofumports -w -local github.com/rsmitty/talos-backer-upper ."
+		go install mvdan.cc/gofumpt@$(GOFUMPT_VERSION) && \
+		gofumpt -w ."
+
+lint-goimports:  ## Runs goimports linter.
+	@$(MAKE) target-$@
 
 .PHONY: base
 base:  ## Prepare base toolchain
@@ -118,33 +128,33 @@ unit-tests-race:  ## Performs unit tests with race detection enabled.
 coverage:  ## Upload coverage data to codecov.io.
 	bash -c "bash <(curl -s https://codecov.io/bash) -f $(ARTIFACTS)/coverage.txt -X fix"
 
-.PHONY: $(ARTIFACTS)/talos-backer-upper-linux-amd64
-$(ARTIFACTS)/talos-backer-upper-linux-amd64:
-	@$(MAKE) local-talos-backer-upper-linux-amd64 DEST=$(ARTIFACTS)
+.PHONY: $(ARTIFACTS)/talos-backup-linux-amd64
+$(ARTIFACTS)/talos-backup-linux-amd64:
+	@$(MAKE) local-talos-backup-linux-amd64 DEST=$(ARTIFACTS)
 
-.PHONY: talos-backer-upper-linux-amd64
-talos-backer-upper-linux-amd64: $(ARTIFACTS)/talos-backer-upper-linux-amd64  ## Builds executable for talos-backer-upper-linux-amd64.
+.PHONY: talos-backup-linux-amd64
+talos-backup-linux-amd64: $(ARTIFACTS)/talos-backup-linux-amd64  ## Builds executable for talos-backup-linux-amd64.
 
-.PHONY: $(ARTIFACTS)/talos-backer-upper-linux-arm64
-$(ARTIFACTS)/talos-backer-upper-linux-arm64:
-	@$(MAKE) local-talos-backer-upper-linux-arm64 DEST=$(ARTIFACTS)
+.PHONY: $(ARTIFACTS)/talos-backup-linux-arm64
+$(ARTIFACTS)/talos-backup-linux-arm64:
+	@$(MAKE) local-talos-backup-linux-arm64 DEST=$(ARTIFACTS)
 
-.PHONY: talos-backer-upper-linux-arm64
-talos-backer-upper-linux-arm64: $(ARTIFACTS)/talos-backer-upper-linux-arm64  ## Builds executable for talos-backer-upper-linux-arm64.
+.PHONY: talos-backup-linux-arm64
+talos-backup-linux-arm64: $(ARTIFACTS)/talos-backup-linux-arm64  ## Builds executable for talos-backup-linux-arm64.
 
-.PHONY: talos-backer-upper
-talos-backer-upper: talos-backer-upper-linux-amd64 talos-backer-upper-linux-arm64  ## Builds executables for talos-backer-upper.
+.PHONY: talos-backup
+talos-backup: talos-backup-linux-amd64 talos-backup-linux-arm64  ## Builds executables for talos-backup.
 
 .PHONY: lint-markdown
 lint-markdown:  ## Runs markdownlint.
 	@$(MAKE) target-$@
 
 .PHONY: lint
-lint: lint-golangci-lint lint-gofumpt lint-markdown  ## Run all linters for the project.
+lint: lint-golangci-lint lint-gofumpt lint-goimports lint-markdown  ## Run all linters for the project.
 
-.PHONY: image-talos-backer-upper
-image-talos-backer-upper:  ## Builds image for talos-backer-upper.
-	@$(MAKE) target-$@ TARGET_ARGS="--tag=$(REGISTRY)/$(USERNAME)/talos-backer-upper:$(TAG)"
+.PHONY: image-talos-backup
+image-talos-backup:  ## Builds image for talos-backup.
+	@$(MAKE) target-$@ TARGET_ARGS="--tag=$(REGISTRY)/$(USERNAME)/talos-backup:$(TAG)"
 
 .PHONY: rekres
 rekres:
@@ -160,4 +170,9 @@ help:  ## This help menu.
 release-notes:
 	mkdir -p $(ARTIFACTS)
 	@ARTIFACTS=$(ARTIFACTS) ./hack/release.sh $@ $(ARTIFACTS)/RELEASE_NOTES.md $(TAG)
+
+.PHONY: conformance
+conformance:
+	@docker pull $(CONFORMANCE_IMAGE)
+	@docker run --rm -it -v $(PWD):/src -w /src $(CONFORMANCE_IMAGE) enforce
 

@@ -105,11 +105,11 @@ steps:
   depends_on:
   - unit-tests
 
-- name: talos-backer-upper
+- name: talos-backup
   pull: always
   image: autonomy/build-container:latest
   commands:
-  - make talos-backer-upper
+  - make talos-backup
   volumes:
   - name: outer-docker-socket
     path: /var/outer-run
@@ -139,11 +139,11 @@ steps:
   depends_on:
   - base
 
-- name: image-talos-backer-upper
+- name: image-talos-backup
   pull: always
   image: autonomy/build-container:latest
   commands:
-  - make image-talos-backer-upper
+  - make image-talos-backup
   volumes:
   - name: outer-docker-socket
     path: /var/outer-run
@@ -154,16 +154,16 @@ steps:
   - name: ssh
     path: /root/.ssh
   depends_on:
-  - talos-backer-upper
+  - talos-backup
   - lint
   - unit-tests
 
-- name: push-talos-backer-upper
+- name: push-talos-backup
   pull: always
   image: autonomy/build-container:latest
   commands:
   - docker login ghcr.io --username "$${GHCR_USERNAME}" --password "$${GHCR_PASSWORD}"
-  - make image-talos-backer-upper
+  - make image-talos-backup
   environment:
     GHCR_PASSWORD:
       from_secret: ghcr_token
@@ -184,14 +184,14 @@ steps:
       exclude:
       - pull_request
   depends_on:
-  - image-talos-backer-upper
+  - image-talos-backup
 
-- name: push-talos-backer-upper-latest
+- name: push-talos-backup-latest
   pull: always
   image: autonomy/build-container:latest
   commands:
   - docker login ghcr.io --username "$${GHCR_USERNAME}" --password "$${GHCR_PASSWORD}"
-  - make image-talos-backer-upper TAG=latest
+  - make image-talos-backup TAG=latest
   environment:
     GHCR_PASSWORD:
       from_secret: ghcr_token
@@ -214,7 +214,7 @@ steps:
       exclude:
       - pull_request
   depends_on:
-  - push-talos-backer-upper
+  - push-talos-backup
 
 - name: release-notes
   pull: always
@@ -236,8 +236,8 @@ steps:
   depends_on:
   - unit-tests
   - coverage
-  - talos-backer-upper
-  - image-talos-backer-upper
+  - talos-backup
+  - image-talos-backup
   - lint
 
 - name: release

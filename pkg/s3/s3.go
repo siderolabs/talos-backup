@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	buconfig "github.com/rsmitty/talos-backer-upper/pkg/config"
+	buconfig "github.com/siderolabs/talos-backup/pkg/config"
 )
 
 // CreateClient will return an s3 client for use.
@@ -22,7 +22,7 @@ func CreateClient(ctx context.Context, conf buconfig.S3Info) (*s3.Client, error)
 
 	cfg.Region = conf.Region
 
-	s3c := s3.NewFromConfig(cfg)
+	s3c := s3.NewFromConfig(cfg) //nolint:contextcheck
 
 	return s3c, nil
 }

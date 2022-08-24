@@ -1,9 +1,9 @@
-# Talos-Backer-Upper
+# talos-backup
 
-Talos-backer-upper is a dead simple backup tool for Talos Linux-based Kubernetes clusters.
+talos-backup is a dead simple backup tool for Talos Linux-based Kubernetes clusters.
 The goal is simple: connect to the cluster using the Talos API, take an etcd snapshot, push said snapshot to s3.
 
-This is accomplished by properly configuring backer-upper with a config file.
+This is accomplished by properly configuring talos-backup with a config file.
 Config files should look like:
 
 ```bash

@@ -1,9 +1,9 @@
 # commit to be tagged for the new release
 commit = "HEAD"
 
-project_name = "talos-backer-upper"
-github_repo = "talos-systems/talos-backer-upper"
-match_deps = "^github.com/(talos-systems/[a-zA-Z0-9-]+)$"
+github_repo = "siderolabs/talos-backup"
+match_deps = "^github.com/(siderolabs/[a-zA-Z0-9-]+)$"
+project_name = "talos-backup"
 
 # previous = -
 # pre_release = true
