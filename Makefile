@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-08-24T20:10:08Z by kres latest.
+# Generated on 2022-10-19T13:48:11Z by kres latest.
 
 # common variables
 
@@ -8,18 +8,23 @@ SHA := $(shell git describe --match=none --always --abbrev=8 --dirty)
 TAG := $(shell git describe --tag --always --dirty)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 ARTIFACTS := _out
+WITH_DEBUG ?= false
+WITH_RACE ?= false
 REGISTRY ?= ghcr.io
 USERNAME ?= siderolabs
 REGISTRY_AND_USERNAME ?= $(REGISTRY)/$(USERNAME)
-GOLANGCILINT_VERSION ?= v1.49.0
-GOFUMPT_VERSION ?= v0.3.1
+GOLANGCILINT_VERSION ?= v1.50.0
+GOFUMPT_VERSION ?= v0.4.0
 GO_VERSION ?= 1.19
 GOIMPORTS_VERSION ?= v0.1.12
 PROTOBUF_GO_VERSION ?= 1.28.1
 GRPC_GO_VERSION ?= 1.2.0
-GRPC_GATEWAY_VERSION ?= 2.11.1
+GRPC_GATEWAY_VERSION ?= 2.11.3
 VTPROTOBUF_VERSION ?= 0.3.0
 DEEPCOPY_VERSION ?= v0.5.5
+GO_BUILDFLAGS ?=
+GO_LDFLAGS ?=
+CGO_ENABLED ?= 0
 TESTPKGS ?= ./...
 KRES_IMAGE ?= ghcr.io/siderolabs/kres:latest
 CONFORMANCE_IMAGE ?= ghcr.io/siderolabs/conform:latest
@@ -35,20 +40,24 @@ COMMON_ARGS = --file=Dockerfile
 COMMON_ARGS += --progress=$(PROGRESS)
 COMMON_ARGS += --platform=$(PLATFORM)
 COMMON_ARGS += --push=$(PUSH)
-COMMON_ARGS += --build-arg=ARTIFACTS=$(ARTIFACTS)
-COMMON_ARGS += --build-arg=SHA=$(SHA)
-COMMON_ARGS += --build-arg=TAG=$(TAG)
-COMMON_ARGS += --build-arg=USERNAME=$(USERNAME)
-COMMON_ARGS += --build-arg=TOOLCHAIN=$(TOOLCHAIN)
-COMMON_ARGS += --build-arg=GOLANGCILINT_VERSION=$(GOLANGCILINT_VERSION)
-COMMON_ARGS += --build-arg=GOFUMPT_VERSION=$(GOFUMPT_VERSION)
-COMMON_ARGS += --build-arg=GOIMPORTS_VERSION=$(GOIMPORTS_VERSION)
-COMMON_ARGS += --build-arg=PROTOBUF_GO_VERSION=$(PROTOBUF_GO_VERSION)
-COMMON_ARGS += --build-arg=GRPC_GO_VERSION=$(GRPC_GO_VERSION)
-COMMON_ARGS += --build-arg=GRPC_GATEWAY_VERSION=$(GRPC_GATEWAY_VERSION)
-COMMON_ARGS += --build-arg=VTPROTOBUF_VERSION=$(VTPROTOBUF_VERSION)
-COMMON_ARGS += --build-arg=DEEPCOPY_VERSION=$(DEEPCOPY_VERSION)
-COMMON_ARGS += --build-arg=TESTPKGS=$(TESTPKGS)
+COMMON_ARGS += --build-arg=ARTIFACTS="$(ARTIFACTS)"
+COMMON_ARGS += --build-arg=SHA="$(SHA)"
+COMMON_ARGS += --build-arg=TAG="$(TAG)"
+COMMON_ARGS += --build-arg=USERNAME="$(USERNAME)"
+COMMON_ARGS += --build-arg=REGISTRY="$(REGISTRY)"
+COMMON_ARGS += --build-arg=TOOLCHAIN="$(TOOLCHAIN)"
+COMMON_ARGS += --build-arg=CGO_ENABLED="$(CGO_ENABLED)"
+COMMON_ARGS += --build-arg=GO_BUILDFLAGS="$(GO_BUILDFLAGS)"
+COMMON_ARGS += --build-arg=GO_LDFLAGS="$(GO_LDFLAGS)"
+COMMON_ARGS += --build-arg=GOLANGCILINT_VERSION="$(GOLANGCILINT_VERSION)"
+COMMON_ARGS += --build-arg=GOFUMPT_VERSION="$(GOFUMPT_VERSION)"
+COMMON_ARGS += --build-arg=GOIMPORTS_VERSION="$(GOIMPORTS_VERSION)"
+COMMON_ARGS += --build-arg=PROTOBUF_GO_VERSION="$(PROTOBUF_GO_VERSION)"
+COMMON_ARGS += --build-arg=GRPC_GO_VERSION="$(GRPC_GO_VERSION)"
+COMMON_ARGS += --build-arg=GRPC_GATEWAY_VERSION="$(GRPC_GATEWAY_VERSION)"
+COMMON_ARGS += --build-arg=VTPROTOBUF_VERSION="$(VTPROTOBUF_VERSION)"
+COMMON_ARGS += --build-arg=DEEPCOPY_VERSION="$(DEEPCOPY_VERSION)"
+COMMON_ARGS += --build-arg=TESTPKGS="$(TESTPKGS)"
 TOOLCHAIN ?= docker.io/golang:1.19-alpine
 
 # help menu
@@ -84,7 +93,19 @@ respectively.
 
 endef
 
-all: unit-tests talos-backup image-talos-backup lint
+ifneq (, $(filter $(WITH_RACE), t true TRUE y yes 1))
+GO_BUILDFLAGS += -race
+CGO_ENABLED := 1
+GO_LDFLAGS += -linkmode=external -extldflags '-static'
+endif
+
+ifneq (, $(filter $(WITH_DEBUG), t true TRUE y yes 1))
+GO_BUILDFLAGS += -tags sidero.debug
+else
+GO_LDFLAGS += -s -w
+endif
+
+all: unit-tests etcd-snapshot-k8s-service image-etcd-snapshot-k8s-service talos-backup image-talos-backup lint
 
 .PHONY: clean
 clean:  ## Cleans up all artifacts.
@@ -109,6 +130,9 @@ fmt:  ## Formats the source code
 		go install mvdan.cc/gofumpt@$(GOFUMPT_VERSION) && \
 		gofumpt -w ."
 
+lint-govulncheck:  ## Runs govulncheck linter.
+	@$(MAKE) target-$@
+
 lint-goimports:  ## Runs goimports linter.
 	@$(MAKE) target-$@
 
@@ -128,6 +152,34 @@ unit-tests-race:  ## Performs unit tests with race detection enabled.
 coverage:  ## Upload coverage data to codecov.io.
 	bash -c "bash <(curl -s https://codecov.io/bash) -f $(ARTIFACTS)/coverage.txt -X fix"
 
+.PHONY: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-amd64
+$(ARTIFACTS)/etcd-snapshot-k8s-service-linux-amd64:
+	@$(MAKE) local-etcd-snapshot-k8s-service-linux-amd64 DEST=$(ARTIFACTS)
+
+.PHONY: etcd-snapshot-k8s-service-linux-amd64
+etcd-snapshot-k8s-service-linux-amd64: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-amd64  ## Builds executable for etcd-snapshot-k8s-service-linux-amd64.
+
+.PHONY: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-arm64
+$(ARTIFACTS)/etcd-snapshot-k8s-service-linux-arm64:
+	@$(MAKE) local-etcd-snapshot-k8s-service-linux-arm64 DEST=$(ARTIFACTS)
+
+.PHONY: etcd-snapshot-k8s-service-linux-arm64
+etcd-snapshot-k8s-service-linux-arm64: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-arm64  ## Builds executable for etcd-snapshot-k8s-service-linux-arm64.
+
+.PHONY: etcd-snapshot-k8s-service
+etcd-snapshot-k8s-service: etcd-snapshot-k8s-service-linux-amd64 etcd-snapshot-k8s-service-linux-arm64  ## Builds executables for etcd-snapshot-k8s-service.
+
+.PHONY: lint-markdown
+lint-markdown:  ## Runs markdownlint.
+	@$(MAKE) target-$@
+
+.PHONY: lint
+lint: lint-golangci-lint lint-gofumpt lint-govulncheck lint-goimports lint-markdown  ## Run all linters for the project.
+
+.PHONY: image-etcd-snapshot-k8s-service
+image-etcd-snapshot-k8s-service:  ## Builds image for etcd-snapshot-k8s-service.
+	@$(MAKE) target-$@ TARGET_ARGS="--tag=$(REGISTRY)/$(USERNAME)/etcd-snapshot-k8s-service:$(TAG)"
+
 .PHONY: $(ARTIFACTS)/talos-backup-linux-amd64
 $(ARTIFACTS)/talos-backup-linux-amd64:
 	@$(MAKE) local-talos-backup-linux-amd64 DEST=$(ARTIFACTS)
@@ -144,13 +196,6 @@ talos-backup-linux-arm64: $(ARTIFACTS)/talos-backup-linux-arm64  ## Builds execu
 
 .PHONY: talos-backup
 talos-backup: talos-backup-linux-amd64 talos-backup-linux-arm64  ## Builds executables for talos-backup.
-
-.PHONY: lint-markdown
-lint-markdown:  ## Runs markdownlint.
-	@$(MAKE) target-$@
-
-.PHONY: lint
-lint: lint-golangci-lint lint-gofumpt lint-goimports lint-markdown  ## Run all linters for the project.
 
 .PHONY: image-talos-backup
 image-talos-backup:  ## Builds image for talos-backup.

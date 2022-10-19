@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: talos-backup
+spec:
+  schedule: "0/10 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: etcd-snapshot-k8s-service
+            image: registry.example.com/myusername/etcd-snapshot-k8s-service:latest
+            workingDir: /tmp
+            imagePullPolicy: IfNotPresent
+            env:
+              - name: AWS_ACCESS_KEY_ID
+                value: talosbackupawsaccesskeyid
+              - name: AWS_SECRET_ACCESS_KEY
+                # consider storing this as a secret.
+                value: d7m4WgVWxUd2jNPKwsoQLWzFG
+              - name: AWS_REGION
+                value: us-west-2
+              # CUSTOM_S3_ENDPOINT is optional; if omitted the service will fallback to default AWS endpoints.
+              - name: CUSTOM_S3_ENDPOINT
+                value: https://my-s3-compatible-api.example.com:1234
+              - name: BUCKET
+                value: talos-backups
+              # CLUSTER_NAME is optional; if omitted it will fall back to the name of the default context.
+              - name: CLUSTER_NAME
+                value: "prod-cluster"
+              # S3_PREFIX is optional; if omitted it will fall back to the cluster name.
+              - name: S3_PREFIX
+                value: "important/backups"
+              - name: AGE_X25519_PUBLIC_KEY
+                value: "age1khpnnl86pzx96ttyjmldptsl5yn2v9jgmmzcjcufvk00ttkph9zs0ytgec"
+            securityContext:
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              runAsNonRoot: true
+              capabilities:
+                drop:
+                  - ALL
+              seccompProfile:
+                type: RuntimeDefault
+            command:
+            - /etcd-snapshot-k8s-service
+            volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/run/secrets/talos.dev
+              name: talos-secrets
+          restartPolicy: OnFailure
+          volumes:
+          - emptyDir: {}
+            name: tmp
+          - name: talos-secrets
+            secret:
+              secretName: talos-backup-secrets
+---
+apiVersion: talos.dev/v1alpha1
+kind: ServiceAccount
+metadata:
+    name: talos-backup-secrets
+spec:
+    roles:
+        - os:etcd:backup
+---
