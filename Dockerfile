@@ -1,22 +1,22 @@
-# syntax = docker/dockerfile-upstream:1.2.0-labs
+# syntax = docker/dockerfile-upstream:1.5.2-labs
 
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-10-19T13:48:11Z by kres latest.
+# Generated on 2023-04-25T14:09:23Z by kres latest.
 
 ARG TOOLCHAIN
 
 # cleaned up specs and compiled versions
 FROM scratch AS generate
 
-FROM ghcr.io/siderolabs/ca-certificates:v1.2.0 AS image-ca-certificates
+FROM ghcr.io/siderolabs/ca-certificates:v1.4.1 AS image-ca-certificates
 
-FROM ghcr.io/siderolabs/fhs:v1.2.0 AS image-fhs
+FROM ghcr.io/siderolabs/fhs:v1.4.1 AS image-fhs
 
 # runs markdownlint
-FROM docker.io/node:18.10.0-alpine3.16 AS lint-markdown
+FROM docker.io/node:20.0.0-alpine3.16 AS lint-markdown
 WORKDIR /src
-RUN npm i -g markdownlint-cli@0.32.2
+RUN npm i -g markdownlint-cli@0.33.0
 RUN npm i sentences-per-line@0.2.1
 COPY .markdownlint.json .
 COPY ./README.md ./README.md
@@ -33,18 +33,18 @@ ARG CGO_ENABLED
 ENV CGO_ENABLED ${CGO_ENABLED}
 ENV GOPATH /go
 ARG GOLANGCILINT_VERSION
-RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCILINT_VERSION} \
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCILINT_VERSION} \
 	&& mv /go/bin/golangci-lint /bin/golangci-lint
 ARG GOFUMPT_VERSION
 RUN go install mvdan.cc/gofumpt@${GOFUMPT_VERSION} \
 	&& mv /go/bin/gofumpt /bin/gofumpt
-RUN go install golang.org/x/vuln/cmd/govulncheck@latest \
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg go install golang.org/x/vuln/cmd/govulncheck@latest \
 	&& mv /go/bin/govulncheck /bin/govulncheck
 ARG GOIMPORTS_VERSION
-RUN go install golang.org/x/tools/cmd/goimports@${GOIMPORTS_VERSION} \
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg go install golang.org/x/tools/cmd/goimports@${GOIMPORTS_VERSION} \
 	&& mv /go/bin/goimports /bin/goimports
 ARG DEEPCOPY_VERSION
-RUN go install github.com/siderolabs/deep-copy@${DEEPCOPY_VERSION} \
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg go install github.com/siderolabs/deep-copy@${DEEPCOPY_VERSION} \
 	&& mv /go/bin/deep-copy /bin/deep-copy
 
 # tools and sources
@@ -55,24 +55,9 @@ COPY ./go.sum .
 RUN --mount=type=cache,target=/go/pkg go mod download
 RUN --mount=type=cache,target=/go/pkg go mod verify
 COPY ./cmd ./cmd
+COPY ./internal ./internal
 COPY ./pkg ./pkg
 RUN --mount=type=cache,target=/go/pkg go list -mod=readonly all >/dev/null
-
-# builds etcd-snapshot-k8s-service-linux-amd64
-FROM base AS etcd-snapshot-k8s-service-linux-amd64-build
-COPY --from=generate / /
-WORKDIR /src/cmd/etcd-snapshot-k8s-service
-ARG GO_BUILDFLAGS
-ARG GO_LDFLAGS
-RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg GOARCH=amd64 GOOS=linux go build ${GO_BUILDFLAGS} -ldflags "${GO_LDFLAGS}" -o /etcd-snapshot-k8s-service-linux-amd64
-
-# builds etcd-snapshot-k8s-service-linux-arm64
-FROM base AS etcd-snapshot-k8s-service-linux-arm64-build
-COPY --from=generate / /
-WORKDIR /src/cmd/etcd-snapshot-k8s-service
-ARG GO_BUILDFLAGS
-ARG GO_LDFLAGS
-RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg GOARCH=arm64 GOOS=linux go build ${GO_BUILDFLAGS} -ldflags "${GO_LDFLAGS}" -o /etcd-snapshot-k8s-service-linux-arm64
 
 # runs gofumpt
 FROM base AS lint-gofumpt
@@ -118,12 +103,6 @@ FROM base AS unit-tests-run
 ARG TESTPKGS
 RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg --mount=type=cache,target=/tmp go test -v -covermode=atomic -coverprofile=coverage.txt -coverpkg=${TESTPKGS} -count 1 ${TESTPKGS}
 
-FROM scratch AS etcd-snapshot-k8s-service-linux-amd64
-COPY --from=etcd-snapshot-k8s-service-linux-amd64-build /etcd-snapshot-k8s-service-linux-amd64 /etcd-snapshot-k8s-service-linux-amd64
-
-FROM scratch AS etcd-snapshot-k8s-service-linux-arm64
-COPY --from=etcd-snapshot-k8s-service-linux-arm64-build /etcd-snapshot-k8s-service-linux-arm64 /etcd-snapshot-k8s-service-linux-arm64
-
 FROM scratch AS talos-backup-linux-amd64
 COPY --from=talos-backup-linux-amd64-build /talos-backup-linux-amd64 /talos-backup-linux-amd64
 
@@ -133,17 +112,11 @@ COPY --from=talos-backup-linux-arm64-build /talos-backup-linux-arm64 /talos-back
 FROM scratch AS unit-tests
 COPY --from=unit-tests-run /src/coverage.txt /coverage.txt
 
-FROM etcd-snapshot-k8s-service-linux-${TARGETARCH} AS etcd-snapshot-k8s-service
-
 FROM talos-backup-linux-${TARGETARCH} AS talos-backup
 
-FROM scratch AS image-etcd-snapshot-k8s-service
-ARG TARGETARCH
-COPY --from=etcd-snapshot-k8s-service etcd-snapshot-k8s-service-linux-${TARGETARCH} /etcd-snapshot-k8s-service
-COPY --from=image-fhs / /
-COPY --from=image-ca-certificates / /
-LABEL org.opencontainers.image.source https://github.com/siderolabs/talos-backup
-ENTRYPOINT ["/etcd-snapshot-k8s-service"]
+FROM scratch AS talos-backup-all
+COPY --from=talos-backup-linux-amd64 / /
+COPY --from=talos-backup-linux-arm64 / /
 
 FROM scratch AS image-talos-backup
 ARG TARGETARCH

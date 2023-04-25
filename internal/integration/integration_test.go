@@ -14,20 +14,17 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	dockertest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
+	"github.com/siderolabs/talos/cmd/talosctl/cmd/mgmt/gen"
+	"github.com/siderolabs/talos/cmd/talosctl/pkg/talos/helpers"
+	machineapi "github.com/siderolabs/talos/pkg/machinery/api/machine"
+	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
+	talosconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
+	"github.com/siderolabs/talos/pkg/machinery/constants"
+	"github.com/siderolabs/talos/pkg/machinery/resources/v1alpha1"
 	"github.com/stretchr/testify/suite"
-	"github.com/talos-systems/talos/cmd/talosctl/cmd/mgmt/gen"
-	"github.com/talos-systems/talos/cmd/talosctl/pkg/talos/helpers"
-	"github.com/talos-systems/talos/pkg/machinery/api/machine"
-	machineapi "github.com/talos-systems/talos/pkg/machinery/api/machine"
-	"github.com/talos-systems/talos/pkg/machinery/client"
-	talosclient "github.com/talos-systems/talos/pkg/machinery/client"
-	"github.com/talos-systems/talos/pkg/machinery/client/config"
-	talosconfig "github.com/talos-systems/talos/pkg/machinery/client/config"
-	"github.com/talos-systems/talos/pkg/machinery/constants"
-	"github.com/talos-systems/talos/pkg/machinery/resources/v1alpha1"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/siderolabs/talos-backup/cmd/etcd-snapshot-k8s-service/service"
+	"github.com/siderolabs/talos-backup/cmd/talos-backup/service"
 	pkgconfig "github.com/siderolabs/talos-backup/pkg/config"
 )
 
@@ -41,10 +38,11 @@ type integrationTestSuite struct {
 	talosResource *dockertest.Resource
 	pool          *dockertest.Pool
 
+	talosConfig *talosconfig.Config
+	talosClient *talosclient.Client
+	minioClient *minio.Client
+
 	serviceConfig pkgconfig.ServiceConfig
-	talosConfig   *talosconfig.Config
-	talosClient   *talosclient.Client
-	minioClient   *minio.Client
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
@@ -87,13 +85,11 @@ const (
 	awsSecretAccessKeyEnvVar = "AWS_SECRET_ACCESS_KEY"
 )
 
-func applyMachineConfig(cfgBytes []byte) func(ctx context.Context, c *client.Client) error {
-	return func(ctx context.Context, c *client.Client) error {
+func applyMachineConfig(cfgBytes []byte) func(ctx context.Context, c *talosclient.Client) error {
+	return func(ctx context.Context, c *talosclient.Client) error {
 		resp, err := c.ApplyConfiguration(ctx, &machineapi.ApplyConfigurationRequest{
 			Data:           cfgBytes,
-			Mode:           machine.ApplyConfigurationRequest_AUTO,
-			OnReboot:       false,
-			Immediate:      true,
+			Mode:           machineapi.ApplyConfigurationRequest_AUTO,
 			DryRun:         false,
 			TryModeTimeout: durationpb.New(constants.ConfigTryTimeout),
 		})
@@ -117,7 +113,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 			"50000/tcp": {{HostPort: "50000"}},
 			"6443/tcp":  {{HostPort: "6443"}},
 		},
-		Tag: "v1.3.0-alpha.0-28-gceb0cd99a",
+		Tag: "v1.4.0",
 		Env: []string{
 			"PLATFORM=container",
 		},
@@ -201,7 +197,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 
 	suite.talosConfig = bundle.TalosCfg
 
-	suite.talosClient, err = client.New(ctx, client.WithConfig(suite.talosConfig), client.WithEndpoints(endpoint))
+	suite.talosClient, err = talosclient.New(ctx, talosclient.WithConfig(suite.talosConfig), talosclient.WithEndpoints(endpoint))
 	if err != nil {
 		return err
 	}
@@ -219,7 +215,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 	}
 
 	err = retry(pool, func() error {
-		return withConfigClient(ctx, endpoint, bundle.TalosCfg, func(ctx context.Context, c *client.Client) error {
+		return withConfigClient(ctx, endpoint, bundle.TalosCfg, func(ctx context.Context, c *talosclient.Client) error {
 			return c.Bootstrap(ctx, &machineapi.BootstrapRequest{
 				RecoverEtcd:          false,
 				RecoverSkipHashCheck: false,
@@ -231,7 +227,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 	}
 
 	err = retry(pool, func() error {
-		return withConfigClient(ctx, endpoint, bundle.TalosCfg, func(ctx context.Context, c *client.Client) error {
+		return withConfigClient(ctx, endpoint, bundle.TalosCfg, func(ctx context.Context, c *talosclient.Client) error {
 			etcdServiceResource, serviceErr := safe.ReaderGet[*v1alpha1.Service](ctx, c.COSI, v1alpha1.NewService("etcd").Metadata())
 			if serviceErr != nil {
 				return serviceErr
@@ -251,12 +247,12 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 	return nil
 }
 
-func withMaintenanceClient(ctx context.Context, endpoint string, action func(context.Context, *client.Client) error) error {
+func withMaintenanceClient(ctx context.Context, endpoint string, action func(context.Context, *talosclient.Client) error) error {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
 
-	c, err := client.New(ctx, client.WithTLSConfig(tlsConfig), client.WithEndpoints(endpoint))
+	c, err := talosclient.New(ctx, talosclient.WithTLSConfig(tlsConfig), talosclient.WithEndpoints(endpoint))
 	if err != nil {
 		return err
 	}
@@ -267,8 +263,8 @@ func withMaintenanceClient(ctx context.Context, endpoint string, action func(con
 	return action(ctx, c)
 }
 
-func withConfigClient(ctx context.Context, endpoint string, cfg *config.Config, action func(context.Context, *client.Client) error) error {
-	c, err := client.New(ctx, client.WithConfig(cfg), client.WithEndpoints(endpoint))
+func withConfigClient(ctx context.Context, endpoint string, cfg *talosconfig.Config, action func(context.Context, *talosclient.Client) error) error {
+	c, err := talosclient.New(ctx, talosclient.WithConfig(cfg), talosclient.WithEndpoints(endpoint))
 	if err != nil {
 		return err
 	}
@@ -342,7 +338,7 @@ func retry(pool *dockertest.Pool, f func() error) error {
 	}
 
 	if err := pool.Retry(captureLastError); err != nil {
-		return fmt.Errorf("Could not complete action: %w; last error: %s", err, lastErr)
+		return fmt.Errorf("Could not complete action: %w; last error: %w", err, lastErr)
 	}
 
 	return nil

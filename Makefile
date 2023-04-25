@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-10-19T13:48:11Z by kres latest.
+# Generated on 2023-04-25T14:09:23Z by kres latest.
 
 # common variables
 
@@ -13,14 +13,14 @@ WITH_RACE ?= false
 REGISTRY ?= ghcr.io
 USERNAME ?= siderolabs
 REGISTRY_AND_USERNAME ?= $(REGISTRY)/$(USERNAME)
-GOLANGCILINT_VERSION ?= v1.50.0
-GOFUMPT_VERSION ?= v0.4.0
-GO_VERSION ?= 1.19
-GOIMPORTS_VERSION ?= v0.1.12
+GOLANGCILINT_VERSION ?= v1.52.2
+GOFUMPT_VERSION ?= v0.5.0
+GO_VERSION ?= 1.20
+GOIMPORTS_VERSION ?= v0.8.0
 PROTOBUF_GO_VERSION ?= 1.28.1
-GRPC_GO_VERSION ?= 1.2.0
-GRPC_GATEWAY_VERSION ?= 2.11.3
-VTPROTOBUF_VERSION ?= 0.3.0
+GRPC_GO_VERSION ?= 1.3.0
+GRPC_GATEWAY_VERSION ?= 2.15.2
+VTPROTOBUF_VERSION ?= 0.4.0
 DEEPCOPY_VERSION ?= v0.5.5
 GO_BUILDFLAGS ?=
 GO_LDFLAGS ?=
@@ -58,7 +58,7 @@ COMMON_ARGS += --build-arg=GRPC_GATEWAY_VERSION="$(GRPC_GATEWAY_VERSION)"
 COMMON_ARGS += --build-arg=VTPROTOBUF_VERSION="$(VTPROTOBUF_VERSION)"
 COMMON_ARGS += --build-arg=DEEPCOPY_VERSION="$(DEEPCOPY_VERSION)"
 COMMON_ARGS += --build-arg=TESTPKGS="$(TESTPKGS)"
-TOOLCHAIN ?= docker.io/golang:1.19-alpine
+TOOLCHAIN ?= docker.io/golang:1.20-alpine
 
 # help menu
 
@@ -105,7 +105,7 @@ else
 GO_LDFLAGS += -s -w
 endif
 
-all: unit-tests etcd-snapshot-k8s-service image-etcd-snapshot-k8s-service talos-backup image-talos-backup lint
+all: unit-tests talos-backup image-talos-backup lint
 
 .PHONY: clean
 clean:  ## Cleans up all artifacts.
@@ -152,34 +152,6 @@ unit-tests-race:  ## Performs unit tests with race detection enabled.
 coverage:  ## Upload coverage data to codecov.io.
 	bash -c "bash <(curl -s https://codecov.io/bash) -f $(ARTIFACTS)/coverage.txt -X fix"
 
-.PHONY: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-amd64
-$(ARTIFACTS)/etcd-snapshot-k8s-service-linux-amd64:
-	@$(MAKE) local-etcd-snapshot-k8s-service-linux-amd64 DEST=$(ARTIFACTS)
-
-.PHONY: etcd-snapshot-k8s-service-linux-amd64
-etcd-snapshot-k8s-service-linux-amd64: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-amd64  ## Builds executable for etcd-snapshot-k8s-service-linux-amd64.
-
-.PHONY: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-arm64
-$(ARTIFACTS)/etcd-snapshot-k8s-service-linux-arm64:
-	@$(MAKE) local-etcd-snapshot-k8s-service-linux-arm64 DEST=$(ARTIFACTS)
-
-.PHONY: etcd-snapshot-k8s-service-linux-arm64
-etcd-snapshot-k8s-service-linux-arm64: $(ARTIFACTS)/etcd-snapshot-k8s-service-linux-arm64  ## Builds executable for etcd-snapshot-k8s-service-linux-arm64.
-
-.PHONY: etcd-snapshot-k8s-service
-etcd-snapshot-k8s-service: etcd-snapshot-k8s-service-linux-amd64 etcd-snapshot-k8s-service-linux-arm64  ## Builds executables for etcd-snapshot-k8s-service.
-
-.PHONY: lint-markdown
-lint-markdown:  ## Runs markdownlint.
-	@$(MAKE) target-$@
-
-.PHONY: lint
-lint: lint-golangci-lint lint-gofumpt lint-govulncheck lint-goimports lint-markdown  ## Run all linters for the project.
-
-.PHONY: image-etcd-snapshot-k8s-service
-image-etcd-snapshot-k8s-service:  ## Builds image for etcd-snapshot-k8s-service.
-	@$(MAKE) target-$@ TARGET_ARGS="--tag=$(REGISTRY)/$(USERNAME)/etcd-snapshot-k8s-service:$(TAG)"
-
 .PHONY: $(ARTIFACTS)/talos-backup-linux-amd64
 $(ARTIFACTS)/talos-backup-linux-amd64:
 	@$(MAKE) local-talos-backup-linux-amd64 DEST=$(ARTIFACTS)
@@ -196,6 +168,13 @@ talos-backup-linux-arm64: $(ARTIFACTS)/talos-backup-linux-arm64  ## Builds execu
 
 .PHONY: talos-backup
 talos-backup: talos-backup-linux-amd64 talos-backup-linux-arm64  ## Builds executables for talos-backup.
+
+.PHONY: lint-markdown
+lint-markdown:  ## Runs markdownlint.
+	@$(MAKE) target-$@
+
+.PHONY: lint
+lint: lint-golangci-lint lint-gofumpt lint-govulncheck lint-goimports lint-markdown  ## Run all linters for the project.
 
 .PHONY: image-talos-backup
 image-talos-backup:  ## Builds image for talos-backup.

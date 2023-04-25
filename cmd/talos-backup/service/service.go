@@ -9,8 +9,8 @@ import (
 	"context"
 	"fmt"
 
-	talosclient "github.com/talos-systems/talos/pkg/machinery/client"
-	talosconfig "github.com/talos-systems/talos/pkg/machinery/client/config"
+	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
+	talosconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
 
 	"github.com/siderolabs/talos-backup/pkg/config"
 	"github.com/siderolabs/talos-backup/pkg/encryption"

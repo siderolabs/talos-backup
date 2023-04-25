@@ -9,8 +9,8 @@ spec:
       template:
         spec:
           containers:
-          - name: etcd-snapshot-k8s-service
-            image: registry.example.com/myusername/etcd-snapshot-k8s-service:latest
+          - name: talos-backup
+            image: registry.example.com/myusername/talos-backup:latest
             workingDir: /tmp
             imagePullPolicy: IfNotPresent
             env:
@@ -45,7 +45,7 @@ spec:
               seccompProfile:
                 type: RuntimeDefault
             command:
-            - /etcd-snapshot-k8s-service
+            - /talos-backup
             volumeMounts:
             - mountPath: /tmp
               name: tmp

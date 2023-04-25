@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/talos-systems/talos/pkg/machinery/api/machine"
-	talosclient "github.com/talos-systems/talos/pkg/machinery/client"
-	talosconfig "github.com/talos-systems/talos/pkg/machinery/client/config"
+	"github.com/siderolabs/talos/pkg/machinery/api/machine"
+	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
+	talosconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
 )
 
 // CreateClient returns a talos API client given a talosconfig string.

@@ -1,7 +1,7 @@
 ---
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-10-19T13:48:11Z by kres latest.
+# Generated on 2023-04-25T14:09:23Z by kres latest.
 
 kind: pipeline
 type: kubernetes
@@ -105,11 +105,11 @@ steps:
   depends_on:
   - unit-tests
 
-- name: etcd-snapshot-k8s-service
+- name: talos-backup
   pull: always
   image: autonomy/build-container:latest
   commands:
-  - make etcd-snapshot-k8s-service
+  - make talos-backup
   volumes:
   - name: outer-docker-socket
     path: /var/outer-run
@@ -127,100 +127,6 @@ steps:
   image: autonomy/build-container:latest
   commands:
   - make lint
-  volumes:
-  - name: outer-docker-socket
-    path: /var/outer-run
-  - name: docker-socket
-    path: /var/run
-  - name: buildx
-    path: /root/.docker/buildx
-  - name: ssh
-    path: /root/.ssh
-  depends_on:
-  - base
-
-- name: image-etcd-snapshot-k8s-service
-  pull: always
-  image: autonomy/build-container:latest
-  commands:
-  - make image-etcd-snapshot-k8s-service
-  volumes:
-  - name: outer-docker-socket
-    path: /var/outer-run
-  - name: docker-socket
-    path: /var/run
-  - name: buildx
-    path: /root/.docker/buildx
-  - name: ssh
-    path: /root/.ssh
-  depends_on:
-  - etcd-snapshot-k8s-service
-  - lint
-  - unit-tests
-
-- name: push-etcd-snapshot-k8s-service
-  pull: always
-  image: autonomy/build-container:latest
-  commands:
-  - docker login ghcr.io --username "$${GHCR_USERNAME}" --password "$${GHCR_PASSWORD}"
-  - make image-etcd-snapshot-k8s-service
-  environment:
-    GHCR_PASSWORD:
-      from_secret: ghcr_token
-    GHCR_USERNAME:
-      from_secret: ghcr_username
-    PUSH: true
-  volumes:
-  - name: outer-docker-socket
-    path: /var/outer-run
-  - name: docker-socket
-    path: /var/run
-  - name: buildx
-    path: /root/.docker/buildx
-  - name: ssh
-    path: /root/.ssh
-  when:
-    event:
-      exclude:
-      - pull_request
-  depends_on:
-  - image-etcd-snapshot-k8s-service
-
-- name: push-etcd-snapshot-k8s-service-latest
-  pull: always
-  image: autonomy/build-container:latest
-  commands:
-  - docker login ghcr.io --username "$${GHCR_USERNAME}" --password "$${GHCR_PASSWORD}"
-  - make image-etcd-snapshot-k8s-service TAG=latest
-  environment:
-    GHCR_PASSWORD:
-      from_secret: ghcr_token
-    GHCR_USERNAME:
-      from_secret: ghcr_username
-    PUSH: true
-  volumes:
-  - name: outer-docker-socket
-    path: /var/outer-run
-  - name: docker-socket
-    path: /var/run
-  - name: buildx
-    path: /root/.docker/buildx
-  - name: ssh
-    path: /root/.ssh
-  when:
-    branch:
-    - main
-    event:
-      exclude:
-      - pull_request
-  depends_on:
-  - push-etcd-snapshot-k8s-service
-
-- name: talos-backup
-  pull: always
-  image: autonomy/build-container:latest
-  commands:
-  - make talos-backup
   volumes:
   - name: outer-docker-socket
     path: /var/outer-run
@@ -303,7 +209,7 @@ steps:
     path: /root/.ssh
   when:
     branch:
-    - main
+    - master
     event:
       exclude:
       - pull_request
@@ -330,8 +236,6 @@ steps:
   depends_on:
   - unit-tests
   - coverage
-  - etcd-snapshot-k8s-service
-  - image-etcd-snapshot-k8s-service
   - talos-backup
   - image-talos-backup
   - lint
@@ -366,7 +270,7 @@ steps:
 
 services:
 - name: docker
-  image: docker:20.10-dind
+  image: docker:23.0-dind
   entrypoint:
   - dockerd
   commands:
@@ -404,6 +308,10 @@ trigger:
     exclude:
     - renovate/*
     - dependabot/*
+  event:
+    exclude:
+    - promote
+    - cron
 
 ---
 kind: pipeline

@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-10-19T13:40:41Z by kres latest.
+# Generated on 2023-04-25T14:00:59Z by kres latest.
 
 # options for analysis running
 run:
@@ -45,7 +45,7 @@ linters-settings:
       - error
       - empty
       - stdlib
-      - github.com\/siderolabs\/kres\/internal\/dag.Node
+      - github.com\/talos-systems\/kres\/internal\/dag.Node
   nestif:
     min-complexity: 5
   goconst:
@@ -150,6 +150,12 @@ linters:
     - maligned
     - golint
     - scopelint
+    - varcheck
+    - deadcode
+    - structcheck
+    - ifshort
+    # disabled as it seems to be broken - goes into imported libraries and reports issues there
+    - musttag
 
 issues:
   exclude: []
