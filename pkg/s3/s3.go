@@ -22,7 +22,7 @@ func CreateClient(ctx context.Context, conf buconfig.S3Info) (*s3.Client, error)
 
 	cfg.Region = conf.Region
 
-	s3c := s3.NewFromConfig(cfg) //nolint:contextcheck
+	s3c := s3.NewFromConfig(cfg)
 
 	return s3c, nil
 }
@@ -48,7 +48,7 @@ func CreateClientWithCustomEndpoint(ctx context.Context, customS3Endpoint string
 		})
 	}
 
-	return s3.NewFromConfig(cfg), nil //nolint:contextcheck
+	return s3.NewFromConfig(cfg), nil
 }
 
 // PushSnapshot will push the given file into s3.

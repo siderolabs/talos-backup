@@ -8,3 +8,57 @@ spec:
     linux-arm64:
       GOOS: linux
       GOARCH: arm64
+---
+kind: auto.CustomSteps
+spec:
+  steps:
+    - name: integration.test
+      toplevel: true
+    - name: integration
+      toplevel: true
+      inputs:
+        - base
+---
+kind: custom.Step
+name: integration.test
+spec:
+  docker:
+    enabled: true
+    stages:
+      - name: integration-build
+        description: builds the integration test binary
+        from: base
+        steps:
+          - script:
+              command: go test -c -tags integration ./internal/integration
+              cache:
+                - /root/.cache/go-build
+                - /go/pkg
+      - name: integration.test
+        description: copies out the integration test binary
+        steps:
+          - copy:
+              from: integration-build
+              src: /src/integration.test
+              dst: /integration.test
+  makefile:
+    enabled: true
+    phony: true
+    script:
+      - "@$(MAKE) local-$@ DEST=$(ARTIFACTS)"
+---
+kind: custom.Step
+name: integration
+spec:
+  makefile:
+    enabled: true
+    phony: true
+    depends:
+      - integration.test
+    variables:
+      - name: RUN_TESTS
+        defaultValue: TestIntegration
+    script:
+      - cd internal/integration && PATH="$$PWD/../../$(ARTIFACTS):$$PATH" integration.test -test.v -test.run $(RUN_TESTS)
+  drone:
+    enabled: true

@@ -1,9 +1,10 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2022-01-13T16:08:44Z by kres latest.
+# Generated on 2023-04-25T14:00:59Z by kres latest.
 
-**
+*
 !cmd
+!internal
 !pkg
 !go.mod
 !go.sum

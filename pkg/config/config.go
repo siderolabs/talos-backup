@@ -2,13 +2,6 @@
 // backup configs
 package config
 
-import (
-	"context"
-	"os"
-
-	"gopkg.in/yaml.v2"
-)
-
 // SnapshotList is the struct for highlevel snapshots key.
 type SnapshotList struct {
 	Snapshots []Snapshot `yaml:"snapshots"`
@@ -32,21 +25,4 @@ type TalosInfo struct {
 type S3Info struct {
 	Bucket string `yaml:"bucket"`
 	Region string `yaml:"region"`
-}
-
-// ParseConfig will ingest a backup config at the given path.
-func ParseConfig(ctx context.Context, path string) (*SnapshotList, error) {
-	sl := &SnapshotList{}
-
-	confBytes, err := os.ReadFile(path)
-	if err != nil {
-		return sl, err
-	}
-
-	err = yaml.Unmarshal(confBytes, sl)
-	if err != nil {
-		return sl, err
-	}
-
-	return sl, nil
 }
