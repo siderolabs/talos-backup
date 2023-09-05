@@ -1,7 +1,7 @@
 ---
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2023-05-03T17:37:17Z by kres latest.
+# Generated on 2023-09-05T19:06:43Z by kres 0d3003d-dirty.
 
 kind: pipeline
 type: kubernetes
@@ -288,7 +288,7 @@ steps:
 
 services:
 - name: docker
-  image: docker:23.0-dind
+  image: docker:24.0-dind
   entrypoint:
   - dockerd
   commands:
@@ -298,6 +298,8 @@ services:
   - --log-level=error
   privileged: true
   volumes:
+  - name: dev
+    path: /dev
   - name: outer-docker-socket
     path: /var/outer-run
   - name: docker-socket
@@ -320,6 +322,9 @@ volumes:
 - name: ssh
   temp:
     medium: memory
+- name: dev
+  host:
+    path: /dev
 
 trigger:
   branch:

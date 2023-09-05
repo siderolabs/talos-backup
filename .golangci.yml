@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2023-04-25T14:00:59Z by kres latest.
+# Generated on 2023-09-05T19:06:43Z by kres 0d3003d-dirty.
 
 # options for analysis running
 run:
@@ -36,7 +36,7 @@ linters-settings:
     lines: 60
     statements: 40
   gci:
-    local-prefixes: github.com/siderolabs/talos-backup
+    local-prefixes: github.com/siderolabs/talos-backup/
   gocognit:
     min-complexity: 30
   ireturn:
@@ -65,7 +65,7 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: github.com/siderolabs/talos-backup
+    local-prefixes: github.com/siderolabs/talos-backup/
   golint:
     min-confidence: 0.8
   gomnd:
@@ -74,9 +74,8 @@ linters-settings:
   govet:
     check-shadowing: true
     enable-all: true
-  depguard:
-    list-type: blacklist
-    include-go-root: false
+    disable:
+      - loopclosure
   lll:
     line-length: 200
     tab-width: 4
@@ -118,6 +117,10 @@ linters-settings:
   cyclop:
       # the maximal code complexity to report
       max-complexity: 20
+  #  depguard:
+  #    Main:
+  #      deny:
+  #        - github.com/OpenPeeDeeP/depguard # this is just an example
 
 linters:
   enable-all: true
@@ -145,6 +148,8 @@ linters:
     - typecheck
     - varnamelen
     - wrapcheck
+    - depguard # Disabled because starting with golangci-lint 1.53.0 it doesn't allow denylist alone anymore
+    - tagalign
     # abandoned linters for which golangci shows the warning that the repo is archived by the owner
     - interfacer
     - maligned
