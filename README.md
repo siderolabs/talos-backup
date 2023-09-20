@@ -47,11 +47,11 @@ kubectl create job --from=cronjob/talos-backup my-test-job
 You may build the binary with:
 
 ```bash
-make etcd-snapshot-k8s-service
+make talos-backup
 ```
 
 or as a container image with:
 
 ```bash
-make REGISTRY=registry.example.com USERNAME=myusername PUSH=true TAG=latest image-etcd-snapshot-k8s-service
+make REGISTRY=registry.example.com USERNAME=myusername PUSH=true TAG=latest image-talos-backup
 ```
