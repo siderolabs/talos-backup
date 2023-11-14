@@ -40,7 +40,7 @@ func BackupEncryptedSnapshot(ctx context.Context, serviceConfig *config.ServiceC
 
 	defer util.CleanupFile(encryptedFileName)
 
-	client, err := s3.CreateClientWithCustomEndpoint(ctx, serviceConfig.CustomS3Endpoint)
+	client, err := s3.CreateClientWithCustomEndpoint(ctx, serviceConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}

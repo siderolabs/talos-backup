@@ -33,18 +33,19 @@ func CreateClient(ctx context.Context, conf buconfig.S3Info) (*s3.Client, error)
 
 // CreateClientWithCustomEndpoint returns an S3 client that loads the default AWS configuration.
 // You may optionally specify `customS3Endpoint` for a custom S3 API endpoint.
-func CreateClientWithCustomEndpoint(ctx context.Context, customS3Endpoint string) (*s3.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
+func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(svcConf.Region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
 
-	if customS3Endpoint != "" {
+	if svcConf.CustomS3Endpoint != "" {
 		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			if true {
 				return aws.Endpoint{
-					URL:               customS3Endpoint,
+					URL:               svcConf.CustomS3Endpoint,
 					HostnameImmutable: true,
+					SigningRegion:     svcConf.Region,
 				}, nil
 			}
 

@@ -13,6 +13,7 @@ import (
 type ServiceConfig struct {
 	CustomS3Endpoint   string `yaml:"customS3Endpoint"`
 	Bucket             string `yaml:"bucket"`
+	Region             string `yaml:"region"`
 	S3Prefix           string `yaml:"s3Prefix"`
 	ClusterName        string `yaml:"clusterName"`
 	AgeX25519PublicKey string `yaml:"ageX25519PublicKey"`
@@ -21,6 +22,7 @@ type ServiceConfig struct {
 const (
 	customS3EndpointEnvVar   = "CUSTOM_S3_ENDPOINT"
 	bucketEnvVar             = "BUCKET"
+	regionEnvVar             = "AWS_REGION"
 	s3PrefixEnvVar           = "S3_PREFIX"
 	clusterNameEnvVar        = "CLUSTER_NAME"
 	ageX25519PublicKeyEnvVar = "AGE_X25519_PUBLIC_KEY"
@@ -31,6 +33,7 @@ func GetServiceConfig() *ServiceConfig {
 	return &ServiceConfig{
 		CustomS3Endpoint:   os.Getenv(customS3EndpointEnvVar),
 		Bucket:             os.Getenv(bucketEnvVar),
+		Region:             os.Getenv(regionEnvVar),
 		S3Prefix:           os.Getenv(s3PrefixEnvVar),
 		ClusterName:        os.Getenv(clusterNameEnvVar),
 		AgeX25519PublicKey: os.Getenv(ageX25519PublicKeyEnvVar),
