@@ -17,40 +17,39 @@ import (
 	buconfig "github.com/siderolabs/talos-backup/pkg/config"
 )
 
-// CreateClient will return an s3 client for use.
-func CreateClient(ctx context.Context, conf buconfig.S3Info) (*s3.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
+type resolverV2 struct {
+	customEndpoint string
+}
 
-	cfg.Region = conf.Region
-
-	s3c := s3.NewFromConfig(cfg)
-
-	return s3c, nil
+// ResolveEndpoint returns a custom endpoint for S3.
+func (r *resolverV2) ResolveEndpoint(_, region string, _ ...interface{}) (aws.Endpoint, error) {
+	return aws.Endpoint{
+		URL:               r.customEndpoint,
+		HostnameImmutable: true,
+		SigningRegion:     region,
+	}, nil
 }
 
 // CreateClientWithCustomEndpoint returns an S3 client that loads the default AWS configuration.
 // You may optionally specify `customS3Endpoint` for a custom S3 API endpoint.
 func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*s3.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(svcConf.Region))
+	cfg, err := config.LoadDefaultConfig(
+		ctx,
+		config.WithRegion(svcConf.Region),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
 
 	if svcConf.CustomS3Endpoint != "" {
-		cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			if true {
-				return aws.Endpoint{
-					URL:               svcConf.CustomS3Endpoint,
-					HostnameImmutable: true,
-					SigningRegion:     svcConf.Region,
-				}, nil
-			}
-
-			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-		})
+		cfg, err = config.LoadDefaultConfig(
+			ctx,
+			config.WithRegion(svcConf.Region),
+			config.WithEndpointResolverWithOptions(&resolverV2{customEndpoint: svcConf.CustomS3Endpoint}),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
+		}
 	}
 
 	return s3.NewFromConfig(cfg), nil

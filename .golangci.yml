@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2023-09-05T19:06:43Z by kres 0d3003d-dirty.
+# Generated on 2023-11-20T06:19:52Z by kres latest.
 
 # options for analysis running
 run:
@@ -150,6 +150,9 @@ linters:
     - wrapcheck
     - depguard # Disabled because starting with golangci-lint 1.53.0 it doesn't allow denylist alone anymore
     - tagalign
+    - inamedparam
+    - testifylint # complains about our assert recorder and has a number of false positives for assert.Greater(t, thing, 1)
+    - protogetter # complains about us using Value field on typed spec, instead of GetValue which has a different signature
     # abandoned linters for which golangci shows the warning that the repo is archived by the owner
     - interfacer
     - maligned

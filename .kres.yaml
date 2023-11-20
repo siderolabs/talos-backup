@@ -60,5 +60,5 @@ spec:
         defaultValue: TestIntegration
     script:
       - cd internal/integration && PATH="$$PWD/../../$(ARTIFACTS):$$PATH" integration.test -test.v -test.run $(RUN_TESTS)
-  drone:
+  ghaction:
     enabled: true

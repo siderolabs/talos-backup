@@ -71,6 +71,7 @@ func (suite *integrationTestSuite) SetupTest() {
 
 	suite.Require().Nil(suite.startTalosControlPlane(suite.ctx, suite.pool))
 
+	suite.Require().Nil(os.Setenv("AWS_REGION", "minio-region"))
 	suite.Require().Nil(os.Setenv(awsAccessKeyIDEnvVar, minioRootUser))
 
 	suite.Require().Nil(os.Setenv(awsSecretAccessKeyEnvVar, minioRootPassword))
@@ -192,7 +193,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 	endpoint := suite.talosResource.Container.NetworkSettings.IPAddress
 	endpointURL := "https://" + endpoint
 
-	bundle, err := gen.V1Alpha1Config(
+	bundle, err := gen.GenerateConfigBundle(
 		nil,
 		suite.serviceConfig.ClusterName,
 		endpointURL,

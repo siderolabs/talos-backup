@@ -14,7 +14,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/siderolabs/talos/pkg/machinery/api/machine"
@@ -54,26 +53,12 @@ func TakeEtcdSnapshot(ctx context.Context, tc *talosclient.Client, clusterName s
 
 	defer dest.Close() //nolint:errcheck
 
-	r, errCh, err := tc.EtcdSnapshot(ctx, &machine.EtcdSnapshotRequest{})
+	r, err := tc.EtcdSnapshot(ctx, &machine.EtcdSnapshotRequest{})
 	if err != nil {
 		return "", fmt.Errorf("error taking snapshot: %w", err)
 	}
 
 	defer r.Close() //nolint:errcheck
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		for err := range errCh {
-			fmt.Fprintln(os.Stderr, err.Error())
-		}
-	}()
-
-	defer wg.Wait()
 
 	size, err := io.Copy(dest, r)
 	if err != nil {
