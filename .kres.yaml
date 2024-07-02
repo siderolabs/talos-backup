@@ -9,6 +9,12 @@ spec:
       GOOS: linux
       GOARCH: arm64
 ---
+kind: common.Image
+name: image-talos-backup
+spec:
+  extraEnvironment:
+    PLATFORM: linux/amd64,linux/arm64
+---
 kind: auto.CustomSteps
 spec:
   steps:
