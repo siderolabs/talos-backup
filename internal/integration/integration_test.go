@@ -52,6 +52,11 @@ type integrationTestSuite struct {
 	serviceConfig pkgconfig.ServiceConfig
 }
 
+var configPatch = `machine:
+  features:
+    hostDNS:
+      forwardKubeDNSToHost: true`
+
 func TestIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(integrationTestSuite))
 }
@@ -198,7 +203,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 		suite.serviceConfig.ClusterName,
 		endpointURL,
 		constants.DefaultKubernetesVersion,
-		nil,
+		[]string{configPatch},
 		nil,
 		nil,
 	)

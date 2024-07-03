@@ -19,6 +19,10 @@ spec:
       inputs:
         - base
 ---
+kind: service.CodeCov
+spec:
+  enabled: false
+---
 kind: custom.Step
 name: integration.test
 spec:

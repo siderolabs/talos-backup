@@ -17,19 +17,6 @@ import (
 	buconfig "github.com/siderolabs/talos-backup/pkg/config"
 )
 
-type resolverV2 struct {
-	customEndpoint string
-}
-
-// ResolveEndpoint returns a custom endpoint for S3.
-func (r *resolverV2) ResolveEndpoint(_, region string, _ ...interface{}) (aws.Endpoint, error) {
-	return aws.Endpoint{
-		URL:               r.customEndpoint,
-		HostnameImmutable: true,
-		SigningRegion:     region,
-	}, nil
-}
-
 // CreateClientWithCustomEndpoint returns an S3 client that loads the default AWS configuration.
 // You may optionally specify `customS3Endpoint` for a custom S3 API endpoint.
 func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*s3.Client, error) {
@@ -41,18 +28,14 @@ func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.Servi
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
 
-	if svcConf.CustomS3Endpoint != "" {
-		cfg, err = config.LoadDefaultConfig(
-			ctx,
-			config.WithRegion(svcConf.Region),
-			config.WithEndpointResolverWithOptions(&resolverV2{customEndpoint: svcConf.CustomS3Endpoint}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if svcConf.CustomS3Endpoint != "" {
+			// Ref: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/
+			o.BaseEndpoint = aws.String(svcConf.CustomS3Endpoint)
 		}
-	}
+	})
 
-	return s3.NewFromConfig(cfg), nil
+	return client, nil
 }
 
 // PushSnapshot will push the given file into s3.
