@@ -19,8 +19,8 @@ import (
 	"github.com/siderolabs/talos-backup/pkg/util"
 )
 
-// BackupEncryptedSnapshot takes a snapshot of etcd, encrypts it and uploads it to S3.
-func BackupEncryptedSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client) error {
+// BackupSnapshot takes a snapshot of etcd, encrypts it or not and uploads it to S3.
+func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client, disableEncryption bool) error {
 	clusterName := serviceConfig.ClusterName
 	if clusterName == "" {
 		clusterName = talosConfig.Context
@@ -33,12 +33,16 @@ func BackupEncryptedSnapshot(ctx context.Context, serviceConfig *config.ServiceC
 
 	defer util.CleanupFile(snapshotPath)
 
-	encryptedFileName, err := encryption.EncryptFile(snapshotPath, serviceConfig.AgeX25519PublicKey)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt etcd snapshot: %w", err)
-	}
+	if !disableEncryption {
+		encryptedFileName, encryptionErr := encryption.EncryptFile(snapshotPath, serviceConfig.AgeX25519PublicKey)
+		if encryptionErr != nil {
+			return fmt.Errorf("failed to encrypt etcd snapshot: %w", encryptionErr)
+		}
 
-	defer util.CleanupFile(encryptedFileName)
+		defer util.CleanupFile(encryptedFileName)
+
+		snapshotPath = encryptedFileName
+	}
 
 	client, err := s3.CreateClientWithCustomEndpoint(ctx, serviceConfig)
 	if err != nil {
@@ -54,9 +58,15 @@ func BackupEncryptedSnapshot(ctx context.Context, serviceConfig *config.ServiceC
 		s3Prefix = clusterName
 	}
 
-	err = s3.PushSnapshot(ctx, s3Info, client, s3Prefix, encryptedFileName)
+	err = s3.PushSnapshot(ctx, s3Info, client, s3Prefix, snapshotPath)
 	if err != nil {
-		return fmt.Errorf("failed to push encrypted snapshot: %w", err)
+		snapshotType := "snapshot"
+
+		if !disableEncryption {
+			snapshotType = "encrypted snapshot"
+		}
+
+		return fmt.Errorf("failed to push %s: %w", snapshotType, err)
 	}
 
 	return nil

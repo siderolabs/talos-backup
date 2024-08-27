@@ -376,7 +376,7 @@ func cleanup(pool *dockertest.Pool, resources ...*dockertest.Resource) error {
 func (suite *integrationTestSuite) TestBackupEncryptedSnapshot() {
 	// when
 	suite.Require().Nil(
-		service.BackupEncryptedSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient),
+		service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient, false),
 	)
 
 	// then
