@@ -9,7 +9,7 @@ import (
 )
 
 // ServiceConfig holds configuration values for the etcd snapshot service.
-// The parameters CustomS3Endpoint, s3Prefix and clusterName are optional.
+// The parameters CustomS3Endpoint, s3Prefix, clusterName and usePathStyle are optional.
 type ServiceConfig struct {
 	CustomS3Endpoint   string `yaml:"customS3Endpoint"`
 	Bucket             string `yaml:"bucket"`
@@ -17,6 +17,7 @@ type ServiceConfig struct {
 	S3Prefix           string `yaml:"s3Prefix"`
 	ClusterName        string `yaml:"clusterName"`
 	AgeX25519PublicKey string `yaml:"ageX25519PublicKey"`
+	UsePathStyle       bool   `yaml:"usePathStyle"`
 }
 
 const (
@@ -25,6 +26,7 @@ const (
 	regionEnvVar             = "AWS_REGION"
 	s3PrefixEnvVar           = "S3_PREFIX"
 	clusterNameEnvVar        = "CLUSTER_NAME"
+	usePathStyleEnvVar       = "USE_PATH_STYLE"
 	ageX25519PublicKeyEnvVar = "AGE_X25519_PUBLIC_KEY"
 )
 
@@ -36,6 +38,7 @@ func GetServiceConfig() *ServiceConfig {
 		Region:             os.Getenv(regionEnvVar),
 		S3Prefix:           os.Getenv(s3PrefixEnvVar),
 		ClusterName:        os.Getenv(clusterNameEnvVar),
+		UsePathStyle:       os.Getenv(usePathStyleEnvVar) == "false",
 		AgeX25519PublicKey: os.Getenv(ageX25519PublicKeyEnvVar),
 	}
 }

@@ -32,6 +32,8 @@ func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.Servi
 		if svcConf.CustomS3Endpoint != "" {
 			// Ref: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/
 			o.BaseEndpoint = aws.String(svcConf.CustomS3Endpoint)
+			// Ref: https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3#Options.UsePathStyle
+			o.UsePathStyle = *aws.Bool(svcConf.UsePathStyle)
 		}
 	})
 
