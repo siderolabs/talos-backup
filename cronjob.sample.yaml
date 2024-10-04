@@ -34,6 +34,10 @@ spec:
                 value: "important/backups"
               - name: AGE_X25519_PUBLIC_KEY
                 value: "age1khpnnl86pzx96ttyjmldptsl5yn2v9jgmmzcjcufvk00ttkph9zs0ytgec"
+              # USE_PATH_STYLE is optional; set this to false if you have another s3 like endpoint such as minio.
+              # If not, the S3 will resolve to a hostname based on https://$BUCKET_NAME.$CUSTOM_S3_ENDPOINT/
+              - name: USE_PATH_STYLE
+                value: "false"
             securityContext:
               runAsUser: 1000
               runAsGroup: 1000
@@ -66,4 +70,11 @@ metadata:
 spec:
     roles:
         - os:etcd:backup
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: talos-backup-secrets
+  annotations:
+    kubernetes.io/service-account.name: talos-backup-secrets
 ---
