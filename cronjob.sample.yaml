@@ -10,7 +10,7 @@ spec:
         spec:
           containers:
           - name: talos-backup
-            image: registry.example.com/myusername/talos-backup:latest
+            image: ghcr.io/siderolabs/talos-backup:latest
             workingDir: /tmp
             imagePullPolicy: IfNotPresent
             env:
@@ -38,6 +38,8 @@ spec:
               # If not, the S3 will resolve to a hostname based on https://$BUCKET_NAME.$CUSTOM_S3_ENDPOINT/
               - name: USE_PATH_STYLE
                 value: "false"
+              - name: AGE_X25519_PUBLIC_KEY
+                value: age1jyp9wm8x0szgtec6x0a0avt7dkqhvs0apkt59g7u7vnfnuptqcmsmz0sn5
             securityContext:
               runAsUser: 1000
               runAsGroup: 1000
