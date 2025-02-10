@@ -9,9 +9,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	buconfig "github.com/siderolabs/talos-backup/pkg/config"
@@ -47,7 +49,9 @@ func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *s3.Client, s3P
 		return err
 	}
 
-	defer f.Close() //nolint:errcheck
+	closeOnce := sync.OnceValue(f.Close)
+
+	defer closeOnce() //nolint:errcheck
 
 	s3In := &s3.PutObjectInput{
 		Bucket: aws.String(conf.Bucket),
@@ -55,9 +59,13 @@ func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *s3.Client, s3P
 		Body:   f,
 	}
 
-	_, err = s3c.PutObject(ctx, s3In)
+	_, err = manager.NewUploader(s3c, func(u *manager.Uploader) { u.PartSize = 10 * 1024 * 1024 }).Upload(ctx, s3In)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to upload %q snapshot to s3: %w", snapPath, err)
+	}
+
+	if err = closeOnce(); err != nil {
+		return fmt.Errorf("failed to close snapshot file %q: %w", snapPath, err)
 	}
 
 	return nil
