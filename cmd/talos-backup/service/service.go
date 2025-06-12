@@ -12,6 +12,7 @@ import (
 	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
 	talosconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
 
+	"github.com/siderolabs/talos-backup/pkg/compression"
 	"github.com/siderolabs/talos-backup/pkg/config"
 	"github.com/siderolabs/talos-backup/pkg/encryption"
 	"github.com/siderolabs/talos-backup/pkg/s3"
@@ -20,7 +21,7 @@ import (
 )
 
 // BackupSnapshot takes a snapshot of etcd, encrypts it or not and uploads it to S3.
-func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client, disableEncryption bool) error {
+func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client, enableCompression bool, disableEncryption bool) error {
 	clusterName := serviceConfig.ClusterName
 	if clusterName == "" {
 		clusterName = talosConfig.Context
@@ -32,6 +33,17 @@ func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, ta
 	}
 
 	defer util.CleanupFile(snapshotPath)
+
+	if enableCompression {
+		compressedFileName, compressionErr := compression.CompressFile(snapshotPath)
+		if compressionErr != nil {
+			return fmt.Errorf("failed to compress etcd snapshot: %w", compressionErr)
+		}
+
+		defer util.CleanupFile(compressedFileName)
+
+		snapshotPath = compressedFileName
+	}
 
 	if !disableEncryption {
 		encryptedFileName, encryptionErr := encryption.EncryptFile(snapshotPath, serviceConfig.AgeX25519PublicKey)

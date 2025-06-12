@@ -42,6 +42,14 @@ To test what you deployed you can trigger the job manually:
 kubectl create job --from=cronjob/talos-backup my-test-job
 ```
 
+## Configuration
+
+### Compression
+
+About compression, it is disabled by default.
+You can turn it on by setting ENABLE_COMPRESSION to "true" in the environement variable list in `cronjob.sample.yaml`.
+Talos backup will compress the etcd snapshot with zstd algorithm before encrypt it.
+
 ## Development
 
 You may build the binary with:

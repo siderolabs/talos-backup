@@ -33,7 +33,7 @@ func run() error {
 		return fmt.Errorf("failed to create talos client: %w", err)
 	}
 
-	return service.BackupSnapshot(ctx, serviceConfig, talosConfig, talosClient, serviceConfig.DisableEncryption)
+	return service.BackupSnapshot(ctx, serviceConfig, talosConfig, talosClient, serviceConfig.EnableCompression, serviceConfig.DisableEncryption)
 }
 
 func main() {

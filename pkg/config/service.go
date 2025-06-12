@@ -18,6 +18,7 @@ type ServiceConfig struct {
 	ClusterName        string `yaml:"clusterName"`
 	AgeX25519PublicKey string `yaml:"ageX25519PublicKey"`
 	UsePathStyle       bool   `yaml:"usePathStyle"`
+	EnableCompression  bool   `yaml:"enableCompression"`
 	DisableEncryption  bool   `yaml:"disableEncryption"`
 }
 
@@ -28,6 +29,7 @@ const (
 	s3PrefixEnvVar           = "S3_PREFIX"
 	clusterNameEnvVar        = "CLUSTER_NAME"
 	usePathStyleEnvVar       = "USE_PATH_STYLE"
+	enableCompressionEnvVar  = "ENABLE_COMPRESSION"
 	disableEncryptionEnvVar  = "DISABLE_ENCRYPTION"
 	ageX25519PublicKeyEnvVar = "AGE_X25519_PUBLIC_KEY"
 )
@@ -41,6 +43,7 @@ func GetServiceConfig() *ServiceConfig {
 		S3Prefix:           os.Getenv(s3PrefixEnvVar),
 		ClusterName:        os.Getenv(clusterNameEnvVar),
 		UsePathStyle:       os.Getenv(usePathStyleEnvVar) == "false",
+		EnableCompression:  os.Getenv(enableCompressionEnvVar) == "true",
 		DisableEncryption:  os.Getenv(disableEncryptionEnvVar) == "true",
 		AgeX25519PublicKey: os.Getenv(ageX25519PublicKeyEnvVar),
 	}

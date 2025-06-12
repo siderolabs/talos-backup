@@ -376,7 +376,7 @@ func cleanup(pool *dockertest.Pool, resources ...*dockertest.Resource) error {
 func (suite *integrationTestSuite) TestBackupEncryptedSnapshot() {
 	// when
 	suite.Require().Nil(
-		service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient, false),
+		service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient, true, false),
 	)
 
 	// then
@@ -388,7 +388,7 @@ func (suite *integrationTestSuite) TestBackupEncryptedSnapshot() {
 	for msg := range listObjectsChan {
 		suite.Require().Nil(msg.Err)
 
-		suite.Require().Regexp(regexp.MustCompile(`testdata/snapshots/talos-test-cluster-\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ\.snap\.age`), msg.Key)
+		suite.Require().Regexp(regexp.MustCompile(`testdata/snapshots/talos-test-cluster-\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ\.snap\.zst\.age`), msg.Key)
 
 		suite.Require().Greater(msg.Size, int64(0))
 	}
