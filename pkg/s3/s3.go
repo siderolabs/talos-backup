@@ -53,9 +53,19 @@ func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *s3.Client, s3P
 
 	defer closeOnce() //nolint:errcheck
 
+	// Remove the first slash from s3Prefix
+	if len(s3Prefix) > 0 && s3Prefix[0] == '/' {
+		s3Prefix = s3Prefix[1:]
+	}
+
+	// Add a trailing slash to s3Prefix
+	if len(s3Prefix) > 0 && s3Prefix[len(s3Prefix)-1] != '/' {
+		s3Prefix = s3Prefix + "/"
+	}
+
 	s3In := &s3.PutObjectInput{
 		Bucket: aws.String(conf.Bucket),
-		Key:    aws.String(fmt.Sprintf("%s/%s", s3Prefix, snapPath)),
+		Key:    aws.String(fmt.Sprintf("%s%s", s3Prefix, snapPath)),
 		Body:   f,
 	}
 
