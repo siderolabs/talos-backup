@@ -8,58 +8,76 @@ package s3
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 	"sync"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	buconfig "github.com/siderolabs/talos-backup/pkg/config"
 )
 
-// CreateClientWithCustomEndpoint returns an S3 client that loads the default AWS configuration.
+// CreateClientWithCustomEndpoint returns an S3 minio client that loads the default AWS configuration.
 // You may optionally specify `customS3Endpoint` for a custom S3 API endpoint.
-func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*s3.Client, error) {
-	cfg, err := config.LoadDefaultConfig(
-		ctx,
-		config.WithRegion(svcConf.Region),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
+func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*minio.Client, error) {
+	endpoint := svcConf.CustomS3Endpoint
+	if endpoint == "" {
+		endpoint = fmt.Sprintf("s3.%s.amazonaws.com", svcConf.Region)
 	}
 
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		if svcConf.CustomS3Endpoint != "" {
-			// Ref: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/
-			o.BaseEndpoint = aws.String(svcConf.CustomS3Endpoint)
-			// Ref: https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3#Options.UsePathStyle
-			o.UsePathStyle = *aws.Bool(svcConf.UsePathStyle)
-		}
+	endpoint = strings.TrimPrefix(endpoint, "https://")
+	endpoint = strings.TrimPrefix(endpoint, "http://")
+
+	useSSL := !strings.HasPrefix(svcConf.CustomS3Endpoint, "http://")
+
+	creds := credentials.NewChainCredentials(
+		[]credentials.Provider{
+			&credentials.EnvAWS{},
+			&credentials.IAM{},
+			&credentials.FileAWSCredentials{},
+		},
+	)
+
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds:  creds,
+		Secure: useSSL,
+		Region: svcConf.Region,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load S3 configuration: %w", err)
+	}
+
+	log.Printf("S3 client created for endpoint: %s, region: %s, useSSL: %v",
+		endpoint, svcConf.Region, useSSL)
 
 	return client, nil
 }
 
 // PushSnapshot will push the given file into s3.
-func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *s3.Client, s3Prefix, snapPath string) error {
+func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *minio.Client, s3Prefix, snapPath string) error {
 	f, err := os.Open(snapPath)
 	if err != nil {
 		return err
 	}
 
 	closeOnce := sync.OnceValue(f.Close)
-
 	defer closeOnce() //nolint:errcheck
 
-	s3In := &s3.PutObjectInput{
-		Bucket: aws.String(conf.Bucket),
-		Key:    aws.String(fmt.Sprintf("%s/%s", s3Prefix, snapPath)),
-		Body:   f,
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	_, err = manager.NewUploader(s3c, func(u *manager.Uploader) { u.PartSize = 10 * 1024 * 1024 }).Upload(ctx, s3In)
+	objectKey := fmt.Sprintf("%s/%s", s3Prefix, snapPath)
+
+	log.Printf("Uploading %s (size: %d bytes) to bucket %s with key %s",
+		snapPath, fileInfo.Size(), conf.Bucket, objectKey)
+
+	_, err = s3c.PutObject(ctx, conf.Bucket, objectKey, f, fileInfo.Size(), minio.PutObjectOptions{
+		ContentType: "application/octet-stream",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to upload %q snapshot to s3: %w", snapPath, err)
 	}

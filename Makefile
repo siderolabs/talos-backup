@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2025-06-13T13:53:31Z by kres 5128bc1.
+# Generated on 2025-08-28T14:35:15Z by kres 784fa1f.
 
 # common variables
 
@@ -17,21 +17,21 @@ WITH_RACE ?= false
 REGISTRY ?= ghcr.io
 USERNAME ?= siderolabs
 REGISTRY_AND_USERNAME ?= $(REGISTRY)/$(USERNAME)
-PROTOBUF_GO_VERSION ?= 1.36.6
+PROTOBUF_GO_VERSION ?= 1.36.7
 GRPC_GO_VERSION ?= 1.5.1
-GRPC_GATEWAY_VERSION ?= 2.26.3
+GRPC_GATEWAY_VERSION ?= 2.27.1
 VTPROTOBUF_VERSION ?= 0.6.0
-GOIMPORTS_VERSION ?= 0.34.0
-GOMOCK_VERSION ?= 0.5.2
-DEEPCOPY_VERSION ?= v0.5.6
-GOLANGCILINT_VERSION ?= v2.1.6
+GOIMPORTS_VERSION ?= 0.36.0
+GOMOCK_VERSION ?= 0.6.0
+DEEPCOPY_VERSION ?= v0.5.8
+GOLANGCILINT_VERSION ?= v2.4.0
 GOFUMPT_VERSION ?= v0.8.0
-GO_VERSION ?= 1.24.4
+GO_VERSION ?= 1.25.0
 GO_BUILDFLAGS ?=
 GO_LDFLAGS ?=
 CGO_ENABLED ?= 0
 GOTOOLCHAIN ?= local
-GOEXPERIMENT ?= synctest
+GOEXPERIMENT ?=
 TESTPKGS ?= ./...
 KRES_IMAGE ?= ghcr.io/siderolabs/kres:latest
 CONFORMANCE_IMAGE ?= ghcr.io/siderolabs/conform:latest
@@ -72,7 +72,7 @@ COMMON_ARGS += --build-arg=DEEPCOPY_VERSION="$(DEEPCOPY_VERSION)"
 COMMON_ARGS += --build-arg=GOLANGCILINT_VERSION="$(GOLANGCILINT_VERSION)"
 COMMON_ARGS += --build-arg=GOFUMPT_VERSION="$(GOFUMPT_VERSION)"
 COMMON_ARGS += --build-arg=TESTPKGS="$(TESTPKGS)"
-TOOLCHAIN ?= docker.io/golang:1.24-alpine
+TOOLCHAIN ?= docker.io/golang:1.25-alpine
 
 # extra variables
 
@@ -169,6 +169,9 @@ local-%:  ## Builds the specified target defined in the Dockerfile using the loc
 
 lint-golangci-lint:  ## Runs golangci-lint linter.
 	@$(MAKE) target-$@
+
+lint-golangci-lint-fmt:  ## Runs golangci-lint formatter and tries to fix issues automatically.
+	@$(MAKE) local-$@ DEST=.
 
 lint-gofumpt:  ## Runs gofumpt linter.
 	@$(MAKE) target-$@
