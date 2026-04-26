@@ -50,6 +50,11 @@ About compression, it is disabled by default.
 You can turn it on by setting ENABLE_COMPRESSION to "true" in the environement variable list in `cronjob.sample.yaml`.
 Talos backup will compress the etcd snapshot with zstd algorithm before encrypt it.
 
+### Use Path Style
+
+For local or self-hosted S3-compatible providers that require path-style addressing, set `USE_PATH_STYLE` to `"true"`.
+When `USE_PATH_STYLE` is unset or `"false"`, talos-backup keeps the default minio-go bucket lookup behavior.
+
 ### Retention
 
 The easiest way to set retention is to set the lifecycle policy on the storage bucket itself.

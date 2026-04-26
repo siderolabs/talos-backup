@@ -40,11 +40,17 @@ func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.Servi
 		},
 	)
 
-	client, err := minio.New(endpoint, &minio.Options{
+	options := &minio.Options{
 		Creds:  creds,
 		Secure: useSSL,
 		Region: svcConf.Region,
-	})
+	}
+
+	if svcConf.UsePathStyle {
+		options.BucketLookup = minio.BucketLookupPath
+	}
+
+	client, err := minio.New(endpoint, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load S3 configuration: %w", err)
 	}

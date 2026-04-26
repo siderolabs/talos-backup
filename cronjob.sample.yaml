@@ -33,6 +33,9 @@ spec:
                 # CUSTOM_S3_ENDPOINT is optional; if omitted the service will fallback to default AWS endpoints.
                 - name: CUSTOM_S3_ENDPOINT
                   value: https://my-s3-compatible-api.example.com:1234
+                # USE_PATH_STYLE is optional; set to true for S3-compatible endpoints that require path-style addressing.
+                - name: USE_PATH_STYLE
+                  value: 'true'
                 - name: BUCKET
                   value: talos-backups
                 # CLUSTER_NAME is optional; if omitted it will fall back to the name of the default context.
