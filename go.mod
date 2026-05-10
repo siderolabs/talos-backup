@@ -5,8 +5,8 @@ go 1.25.5
 require (
 	filippo.io/age v1.3.1
 	github.com/klauspost/compress v1.18.5
-	github.com/siderolabs/talos v1.12.6
-	github.com/siderolabs/talos/pkg/machinery v1.12.6
+	github.com/siderolabs/talos v1.12.7
+	github.com/siderolabs/talos/pkg/machinery v1.12.7
 	github.com/stretchr/testify v1.11.1
 )
 
