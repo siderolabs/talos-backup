@@ -7,6 +7,7 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -26,6 +27,15 @@ func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.Servi
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(svcConf.Region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
+	}
+
+	if cfg.Region == "" {
+		if svcConf.CustomS3Endpoint == "" {
+			return nil, errors.New("AWS_REGION is required with AWS S3")
+		}
+
+		// most S3-compatible providers ignore the region, default to us-east-1 like minio-go did
+		cfg.Region = "us-east-1"
 	}
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {

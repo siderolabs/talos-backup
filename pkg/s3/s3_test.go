@@ -17,6 +17,20 @@ import (
 	"github.com/siderolabs/talos-backup/pkg/s3"
 )
 
+func TestCreateClientRegion(t *testing.T) {
+	// ignore any AWS configuration of the machine running the tests
+	t.Setenv("AWS_CONFIG_FILE", os.DevNull)
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+
+	client, err := s3.CreateClientWithCustomEndpoint(t.Context(), &buconfig.ServiceConfig{CustomS3Endpoint: "http://localhost:9000"})
+	require.NoError(t, err)
+	require.Equal(t, "us-east-1", client.Options().Region)
+
+	_, err = s3.CreateClientWithCustomEndpoint(t.Context(), &buconfig.ServiceConfig{})
+	require.ErrorContains(t, err, "AWS_REGION is required")
+}
+
 func TestPushSnapshotCustomEndpoint(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
