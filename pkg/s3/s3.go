@@ -7,62 +7,58 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	buconfig "github.com/siderolabs/talos-backup/pkg/config"
 )
 
-// CreateClientWithCustomEndpoint returns an S3 minio client that loads the default AWS configuration.
+// CreateClientWithCustomEndpoint returns an S3 client that loads the default AWS configuration.
 // You may optionally specify `customS3Endpoint` for a custom S3 API endpoint.
-func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*minio.Client, error) {
-	endpoint := svcConf.CustomS3Endpoint
-	if endpoint == "" {
-		endpoint = fmt.Sprintf("s3.%s.amazonaws.com", svcConf.Region)
-	}
-
-	endpoint = strings.TrimPrefix(endpoint, "https://")
-	endpoint = strings.TrimPrefix(endpoint, "http://")
-
-	useSSL := !strings.HasPrefix(svcConf.CustomS3Endpoint, "http://")
-
-	creds := credentials.NewChainCredentials(
-		[]credentials.Provider{
-			&credentials.EnvAWS{},
-			&credentials.IAM{},
-			&credentials.FileAWSCredentials{},
-		},
-	)
-
-	options := &minio.Options{
-		Creds:  creds,
-		Secure: useSSL,
-		Region: svcConf.Region,
-	}
-
-	if svcConf.UsePathStyle {
-		options.BucketLookup = minio.BucketLookupPath
-	}
-
-	client, err := minio.New(endpoint, options)
+func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.ServiceConfig) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(svcConf.Region))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load S3 configuration: %w", err)
+		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
 
-	log.Printf("S3 client created for endpoint: %s, region: %s, useSSL: %v",
-		endpoint, svcConf.Region, useSSL)
+	if cfg.Region == "" {
+		if svcConf.CustomS3Endpoint == "" {
+			return nil, errors.New("AWS_REGION is required with AWS S3")
+		}
+
+		// most S3-compatible providers ignore the region, default to us-east-1 like minio-go did
+		cfg.Region = "us-east-1"
+	}
+
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if svcConf.CustomS3Endpoint == "" {
+			return
+		}
+
+		o.BaseEndpoint = aws.String(svcConf.CustomS3Endpoint)
+		o.UsePathStyle = svcConf.UsePathStyle
+		// Many S3-compatible providers reject the flexible checksums the SDK sends by default,
+		// only send them when the operation requires it.
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+	})
+
+	log.Printf("S3 client created for endpoint: %q, region: %s, usePathStyle: %v",
+		svcConf.CustomS3Endpoint, cfg.Region, svcConf.UsePathStyle)
 
 	return client, nil
 }
 
 // PushSnapshot will push the given file into s3.
-func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *minio.Client, s3Prefix, snapPath string) error {
+func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *s3.Client, s3Prefix, snapPath string) error {
 	f, err := os.Open(snapPath)
 	if err != nil {
 		return err
@@ -71,18 +67,20 @@ func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *minio.Client, 
 	closeOnce := sync.OnceValue(f.Close)
 	defer closeOnce() //nolint:errcheck
 
-	fileInfo, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to get file info: %w", err)
-	}
-
 	objectKey := fmt.Sprintf("%s/%s", s3Prefix, snapPath)
 
-	log.Printf("Uploading %s (size: %d bytes) to bucket %s with key %s",
-		snapPath, fileInfo.Size(), conf.Bucket, objectKey)
+	log.Printf("Uploading %s to bucket %s with key %s", snapPath, conf.Bucket, objectKey)
 
-	_, err = s3c.PutObject(ctx, conf.Bucket, objectKey, f, fileInfo.Size(), minio.PutObjectOptions{
-		ContentType: "application/octet-stream",
+	// transfermanager does not inherit the client checksum setting, it has to be passed along
+	uploader := transfermanager.New(s3c, func(o *transfermanager.Options) {
+		o.RequestChecksumCalculation = s3c.Options().RequestChecksumCalculation
+	})
+
+	_, err = uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
+		Bucket:      aws.String(conf.Bucket),
+		Key:         aws.String(objectKey),
+		Body:        f,
+		ContentType: aws.String("application/octet-stream"),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to upload %q snapshot to s3: %w", snapPath, err)
