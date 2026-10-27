@@ -52,8 +52,9 @@ Talos backup will compress the etcd snapshot with zstd algorithm before encrypt 
 
 ### Use Path Style
 
-For local or self-hosted S3-compatible providers that require path-style addressing, set `USE_PATH_STYLE` to `"true"`.
-When `USE_PATH_STYLE` is unset or `"false"`, talos-backup keeps the default minio-go bucket lookup behavior.
+When `CUSTOM_S3_ENDPOINT` is set, talos-backup uses path-style addressing (`https://endpoint/bucket/key`) by default, which works with most S3-compatible providers.
+Set `USE_PATH_STYLE` to `"false"` for providers that require virtual-hosted-style addressing (`https://bucket.endpoint/key`).
+`USE_PATH_STYLE` is ignored for AWS S3 (no `CUSTOM_S3_ENDPOINT`).
 
 ### Retention
 
