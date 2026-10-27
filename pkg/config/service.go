@@ -7,6 +7,7 @@ package config
 import (
 	"os"
 	"strings"
+	"unicode"
 )
 
 // ServiceConfig holds configuration values for the etcd snapshot service.
@@ -38,9 +39,8 @@ const (
 
 // GetServiceConfig parses the backup service config at path.
 func GetServiceConfig() *ServiceConfig {
-	ageRecipientPublicKey := strings.Split(os.Getenv(ageRecipientPublicKeyEnvVar), ",")
-	ageX25519PublicKey := strings.Split(os.Getenv(ageX25519PublicKeyEnvVar), ",")
-	ageRecipientPublicKey = append(ageRecipientPublicKey, ageX25519PublicKey...)
+	ageRecipientPublicKey := splitKeys(os.Getenv(ageRecipientPublicKeyEnvVar))
+	ageRecipientPublicKey = append(ageRecipientPublicKey, splitKeys(os.Getenv(ageX25519PublicKeyEnvVar))...)
 
 	return &ServiceConfig{
 		CustomS3Endpoint:      os.Getenv(customS3EndpointEnvVar),
@@ -48,9 +48,14 @@ func GetServiceConfig() *ServiceConfig {
 		Region:                os.Getenv(regionEnvVar),
 		S3Prefix:              os.Getenv(s3PrefixEnvVar),
 		ClusterName:           os.Getenv(clusterNameEnvVar),
-		UsePathStyle:          os.Getenv(usePathStyleEnvVar) == "true",      //nolint:goconst
+		UsePathStyle:          os.Getenv(usePathStyleEnvVar) != "false",     //nolint:goconst
 		EnableCompression:     os.Getenv(enableCompressionEnvVar) == "true", //nolint:goconst
 		DisableEncryption:     os.Getenv(disableEncryptionEnvVar) == "true", //nolint:goconst
 		AgeRecipientPublicKey: ageRecipientPublicKey,
 	}
+}
+
+// splitKeys splits a comma separated list of keys, ignoring blanks.
+func splitKeys(s string) []string {
+	return strings.FieldsFunc(s, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
 }

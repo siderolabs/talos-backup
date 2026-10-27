@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/cosi-project/runtime/pkg/safe"
-	minio "github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	dockertest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/siderolabs/talos/cmd/talosctl/cmd/mgmt/gen"
@@ -41,21 +41,16 @@ type integrationTestSuite struct {
 	ctx       context.Context //nolint:containedctx
 	ctxCancel context.CancelFunc
 
-	minioResource *dockertest.Resource
+	s3Resource    *dockertest.Resource
 	talosResource *dockertest.Resource
 	pool          *dockertest.Pool
 
 	talosConfig *talosconfig.Config
 	talosClient *talosclient.Client
-	minioClient *minio.Client
+	s3Client    *s3.Client
 
 	serviceConfig pkgconfig.ServiceConfig
 }
-
-var configPatch = `machine:
-  features:
-    hostDNS:
-      forwardKubeDNSToHost: true`
 
 func TestIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(integrationTestSuite))
@@ -72,14 +67,14 @@ func (suite *integrationTestSuite) SetupTest() {
 	err = suite.pool.Client.Ping()
 	suite.Require().Nil(err)
 
-	suite.Require().Nil(suite.startMinIO(suite.ctx, suite.pool))
+	suite.Require().Nil(suite.startS3(suite.ctx, suite.pool))
 
 	suite.Require().Nil(suite.startTalosControlPlane(suite.ctx, suite.pool))
 
-	suite.Require().Nil(os.Setenv("AWS_REGION", "minio-region"))
-	suite.Require().Nil(os.Setenv(awsAccessKeyIDEnvVar, minioRootUser))
+	suite.Require().Nil(os.Setenv("AWS_REGION", "us-east-1"))
+	suite.Require().Nil(os.Setenv(awsAccessKeyIDEnvVar, s3AccessKey))
 
-	suite.Require().Nil(os.Setenv(awsSecretAccessKeyEnvVar, minioRootPassword))
+	suite.Require().Nil(os.Setenv(awsSecretAccessKeyEnvVar, s3SecretKey))
 }
 
 func (suite *integrationTestSuite) TearDownTest() {
@@ -87,7 +82,7 @@ func (suite *integrationTestSuite) TearDownTest() {
 
 	suite.ctxCancel()
 
-	suite.Require().Nil(cleanup(suite.pool, suite.minioResource, suite.talosResource))
+	suite.Require().Nil(cleanup(suite.pool, suite.s3Resource, suite.talosResource))
 
 	suite.Require().Nil(os.Unsetenv(awsAccessKeyIDEnvVar))
 
@@ -95,8 +90,8 @@ func (suite *integrationTestSuite) TearDownTest() {
 }
 
 const (
-	minioRootUser            = "minioadmin"
-	minioRootPassword        = "minioadmin"
+	s3AccessKey              = "talosbackup"
+	s3SecretKey              = "talosbackup"
 	awsAccessKeyIDEnvVar     = "AWS_ACCESS_KEY_ID"
 	awsSecretAccessKeyEnvVar = "AWS_SECRET_ACCESS_KEY"
 )
@@ -195,7 +190,8 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 		return fmt.Errorf("Could not start resource: %w", err)
 	}
 
-	endpoint := suite.talosResource.Container.NetworkSettings.IPAddress
+	// NetworkSettings.IPAddress is deprecated and empty on recent Docker versions
+	endpoint := suite.talosResource.Container.NetworkSettings.Networks["bridge"].IPAddress
 	endpointURL := "https://" + endpoint
 
 	bundle, err := gen.GenerateConfigBundle(
@@ -203,7 +199,7 @@ func (suite *integrationTestSuite) startTalosControlPlane(ctx context.Context, p
 		suite.serviceConfig.ClusterName,
 		endpointURL,
 		constants.DefaultKubernetesVersion,
-		[]string{configPatch},
+		nil,
 		nil,
 		nil,
 	)
@@ -291,55 +287,50 @@ func withConfigClient(ctx context.Context, endpoint string, cfg *talosconfig.Con
 	return action(ctx, c)
 }
 
-func (suite *integrationTestSuite) startMinIO(ctx context.Context, pool *dockertest.Pool) error {
-	minioS3APIPort := "9000"
+func (suite *integrationTestSuite) startS3(ctx context.Context, pool *dockertest.Pool) error {
+	s3APIPort := "7070"
 
 	options := &dockertest.RunOptions{
-		Repository: "minio/minio",
-		Cmd:        []string{"server", "/data"},
-		Tag:        "RELEASE.2022-10-21T22-37-48Z",
-		Env: []string{
-			"MINIO_ROOT_USER=" + minioRootUser,
-			"MINIO_ROOT_PASSWORD=" + minioRootPassword,
-		},
+		Repository:   "versity/versitygw",
+		Cmd:          []string{"--access", s3AccessKey, "--secret", s3SecretKey, "posix", "/tmp"},
+		Tag:          "v1.10.0",
+		ExposedPorts: []string{s3APIPort + "/tcp"},
 	}
 
 	var err error
 
-	suite.minioResource, err = pool.RunWithOptions(options)
+	suite.s3Resource, err = pool.RunWithOptions(options)
 	if err != nil {
 		fmt.Printf("failed to run")
 		return err
 	}
 
-	endpoint := suite.minioResource.GetHostPort(minioS3APIPort + "/tcp")
-	accessKeyID := minioRootUser
-	secretAccessKey := minioRootPassword
-	useSSL := false
+	endpoint := "http://" + suite.s3Resource.GetHostPort(s3APIPort+"/tcp")
 
-	suite.minioClient, err = minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSSL,
+	suite.s3Client = s3.New(s3.Options{
+		BaseEndpoint: aws.String(endpoint),
+		Region:       "us-east-1",
+		UsePathStyle: true,
+		Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
+			return aws.Credentials{AccessKeyID: s3AccessKey, SecretAccessKey: s3SecretKey}, nil
+		}),
 	})
-	if err != nil {
-		return err
-	}
 
 	bucketName := "integration-test-bucket"
 
 	err = retry(pool, func() error {
-		return suite.minioClient.MakeBucket(ctx, "integration-test-bucket", minio.MakeBucketOptions{
-			Region:        "test-region",
-			ObjectLocking: false,
-		})
+		_, createErr := suite.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucketName)})
+
+		return createErr
 	})
 	if err != nil {
 		return err
 	}
 
-	suite.serviceConfig.CustomS3Endpoint = "http://" + suite.minioResource.Container.NetworkSettings.IPAddress + ":" + minioS3APIPort
+	suite.serviceConfig.CustomS3Endpoint = endpoint
 	suite.serviceConfig.Bucket = bucketName
 	suite.serviceConfig.S3Prefix = "testdata/snapshots"
+	suite.serviceConfig.UsePathStyle = true
 
 	return nil
 }
@@ -389,16 +380,15 @@ func (suite *integrationTestSuite) TestBackupEncryptedSnapshot() {
 	)
 
 	// then
-	listObjectsChan := suite.minioClient.ListObjects(suite.ctx, suite.serviceConfig.Bucket, minio.ListObjectsOptions{
-		// Prefix: suite.serviceConfig.S3Prefix,
-		Recursive: true,
+	objects, err := suite.s3Client.ListObjectsV2(suite.ctx, &s3.ListObjectsV2Input{
+		Bucket: aws.String(suite.serviceConfig.Bucket),
 	})
+	suite.Require().Nil(err)
+	suite.Require().NotEmpty(objects.Contents)
 
-	for msg := range listObjectsChan {
-		suite.Require().Nil(msg.Err)
+	for _, obj := range objects.Contents {
+		suite.Require().Regexp(regexp.MustCompile(`testdata/snapshots/talos-test-cluster-\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ\.snap\.zst\.age`), aws.ToString(obj.Key))
 
-		suite.Require().Regexp(regexp.MustCompile(`testdata/snapshots/talos-test-cluster-\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ\.snap\.zst\.age`), msg.Key)
-
-		suite.Require().Greater(msg.Size, int64(0))
+		suite.Require().Greater(aws.ToInt64(obj.Size), int64(0))
 	}
 }
