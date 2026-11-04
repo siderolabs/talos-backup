@@ -46,9 +46,17 @@ func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.Servi
 		o.BaseEndpoint = aws.String(svcConf.CustomS3Endpoint)
 		o.UsePathStyle = svcConf.UsePathStyle
 		// Many S3-compatible providers reject the flexible checksums the SDK sends by default,
-		// only send them when the operation requires it.
-		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
-		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+		// only send them when the operation requires it. AWS_REQUEST_CHECKSUM_CALCULATION and
+		// AWS_RESPONSE_CHECKSUM_VALIDATION in the environment still win: a bucket with an Object Lock
+		// default retention requires a checksum on every upload. (LoadDefaultConfig fills in the SDK
+		// default when they are unset, so cfg cannot tell.)
+		if os.Getenv("AWS_REQUEST_CHECKSUM_CALCULATION") == "" {
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		}
+
+		if os.Getenv("AWS_RESPONSE_CHECKSUM_VALIDATION") == "" {
+			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+		}
 	})
 
 	log.Printf("S3 client created for endpoint: %q, region: %s, usePathStyle: %v",
